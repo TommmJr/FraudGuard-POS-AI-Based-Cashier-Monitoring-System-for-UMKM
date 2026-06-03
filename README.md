@@ -95,7 +95,25 @@ python api/app.py
 # API running at http://localhost:5000
 ```
 
-Test dengan curl:
+#### Endpoint yang Tersedia
+
+Endpoint Method Deskripsi 
+`/health` GET Status API, database, dan model 
+`/api/score` POST Skor fraud untuk batch transaksi 
+`/api/summary/<cashier_id>` GET Ringkasan risiko per kasir 
+`/api/cashiers` GET Daftar semua kasir + statistik 
+`/api/dashboard` GET Statistik keseluruhan (untuk dashboard) 
+`/api/transactions` POST Simpan transaksi baru ke DB 
+`/api/transactions` GET Ambil transaksi (filter & pagination) 
+`/api/model-info` GET Info model ML yang tersedia 
+`/api/batch-score` POST Score semua transaksi di DB 
+
+#### Contoh: Health Check
+```bash
+curl http://localhost:5000/health
+```
+
+#### Contoh: Score Transaksi
 ```bash
 curl -X POST http://localhost:5000/api/score \
   -H "Content-Type: application/json" \
@@ -108,15 +126,67 @@ curl -X POST http://localhost:5000/api/score \
         "transaction_type": "REFUND",
         "amount": 150000
       }
+    ],
+    "model_type": "rf"
+  }'
+```
+
+#### Contoh: Dashboard
+```bash
+# Semua data
+curl http://localhost:5000/api/dashboard
+
+# Data 7 hari terakhir
+curl http://localhost:5000/api/dashboard?days=7
+```
+
+#### Contoh: Daftar Kasir
+```bash
+curl http://localhost:5000/api/cashiers
+```
+
+#### Contoh: Ambil Transaksi (dengan filter)
+```bash
+# Semua transaksi (halaman 1)
+curl http://localhost:5000/api/transactions?page=1&per_page=50
+
+# Filter kasir tertentu
+curl http://localhost:5000/api/transactions?cashier_id=CSH-001&type=REFUND
+```
+
+#### Contoh: Simpan Transaksi Baru
+```bash
+curl -X POST http://localhost:5000/api/transactions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transactions": [
+      {
+        "cashier_id": "CSH-001",
+        "timestamp": "2026-06-03T10:00:00",
+        "transaction_type": "SALE",
+        "amount": 50000
+      }
     ]
   }'
 ```
 
-Untuk ganti ke XGBoost:
-```python
-# Di api/app.py, ubah:
-scored = score_transactions(df, model_type="xgboost")
+#### Contoh: Batch Score
+```bash
+# Score transaksi yang belum punya skor
+curl -X POST http://localhost:5000/api/batch-score \
+  -H "Content-Type: application/json" \
+  -d '{"model_type": "rf"}'
+
+# Re-score semua transaksi
+curl -X POST http://localhost:5000/api/batch-score \
+  -H "Content-Type: application/json" \
+  -d '{"model_type": "xgboost", "rescore_all": true}'
 ```
+
+#### Ganti Model
+Bisa pilih model saat request via `model_type`:
+- `"rf"` — Random Forest (default)
+- `"xgboost"` — XGBoost
 
 ---
 
