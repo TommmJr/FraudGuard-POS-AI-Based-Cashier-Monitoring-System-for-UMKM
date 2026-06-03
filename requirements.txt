@@ -1,0 +1,28 @@
+#  FraudGuard - requirements.txt                    
+#  Pipeline inti (generate -> feature -> train -> evaluate ->
+#  score) hanya butuh pandas, numpy, scikit-learn, joblib.
+#  SQLite memakai modul bawaan Python (sqlite3), tanpa paket.
+                
+
+pandas>=2.2
+numpy>=1.26
+scipy>=1.11
+scikit-learn>=1.4
+joblib>=1.4
+
+# --- API (opsional, untuk menjalankan app.py) ---
+flask>=3.0
+flask-cors>=4.0          # opsional; app.py tetap jalan tanpanya
+
+# --- Notebook & Jupyter ---
+jupyter>=1.0
+ipython>=8.0
+matplotlib>=3.8
+seaborn>=0.13
+
+# --- Model XGBoost untuk perbandingan ---
+xgboost>=2.0
+
+# --- Cloud MySQL (opsional, hanya bila USE_CLOUD=True) ---
+# sqlalchemy>=2.0
+# mysql-connector-python>=8.4
