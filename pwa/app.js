@@ -1,4 +1,3 @@
-// FraudGuard - pwa/app.js
 // Mengatur interaksi UI, mengambil data API, dan menangani form kasir
 
 // Fungsi untuk mengambil data statistik dari API dan menampilkannya
@@ -9,13 +8,13 @@ async function muatDashboard() {
     let elemenDashboard;
 
     urlAPI = 'http://127.0.0.1:5000/api/dashboard';
-    
+
     try {
         respons = await fetch(urlAPI);
         if (respons.ok) {
             data = await respons.json();
             elemenDashboard = document.getElementById('data-dashboard');
-            
+
             if (elemenDashboard) {
                 // Menampilkan total transaksi sementara sebagai contoh
                 elemenDashboard.innerHTML = `
@@ -37,7 +36,7 @@ async function prosesTransaksiBaru(event) {
     let dataTransaksi;
 
     // Mencegah halaman reload saat form dikirim
-    event.preventDefault(); 
+    event.preventDefault();
 
     // Mengambil nilai dari input HTML (id ini akan kita buat di index.html nanti)
     idKasir = document.getElementById('input-cashier').value;
@@ -54,13 +53,13 @@ async function prosesTransaksiBaru(event) {
 
     // 1. Simpan ke database lokal terlebih dahulu (memanggil fungsi dari db.js)
     await saveTransaction(dataTransaksi);
-    
+
     // 2. Coba sinkronisasi langsung ke backend jika sedang online
     syncAndScore();
-    
+
     // 3. Kosongkan form setelah input berhasil
     document.getElementById('form-transaksi').reset();
-    
+
     // Opsional: Beri tahu kasir bahwa input berhasil masuk antrean
     showAlert("Transaksi berhasil dicatat", "success");
 }
@@ -68,15 +67,15 @@ async function prosesTransaksiBaru(event) {
 // Fungsi helper untuk menampilkan notifikasi UI (dipanggil juga oleh db.js)
 function showAlert(pesan, level) {
     let kotakAlert;
-    
+
     kotakAlert = document.createElement('div');
     kotakAlert.className = 'alert ' + level;
     kotakAlert.innerText = pesan;
-    
+
     document.body.prepend(kotakAlert);
-    
+
     // Hilangkan notifikasi setelah 4 detik
-    setTimeout(function() {
+    setTimeout(function () {
         kotakAlert.remove();
     }, 4000);
 }
@@ -89,6 +88,7 @@ function updateDashboard(scoredData) {
 }
 // Fungsi untuk mengambil dan menampilkan tabel riwayat transaksi
 async function muatRiwayatTransaksi() {
+
     // Deklarasi semua variabel di awal fungsi
     let urlAPI;
     let respons;
@@ -129,7 +129,7 @@ async function muatRiwayatTransaksi() {
                         </tr>
                     `;
                 }
-                
+
                 // Tampilkan ke layar
                 elemenTabelBody.innerHTML = htmlTabel;
             }
@@ -139,14 +139,13 @@ async function muatRiwayatTransaksi() {
     }
 }
 // Menjalankan fungsi saat halaman web pertama kali dimuat
-window.onload = function() {
+window.onload = function () {
     let formTransaksi;
 
     // Muat data dashboard
     muatDashboard();
     muatRiwayatTransaksi();
 
-    // Pasang "pendengar" event pada form kasir
     formTransaksi = document.getElementById('form-transaksi');
     if (formTransaksi) {
         formTransaksi.addEventListener('submit', prosesTransaksiBaru);
