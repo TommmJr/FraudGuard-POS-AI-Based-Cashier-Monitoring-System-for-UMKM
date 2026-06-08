@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FraudGuard Point of Sale</title>
+    <link rel="icon" href="data:,">
+    
+    <link rel="manifest" href="manifest.json">
+    
+    <link rel="stylesheet" href="style.css">
+    
+    <meta name="theme-color" content="#2c3e50">
+</head>
+<body>
+
+    <header>
+        <h1>FraudGuard POS</h1>
+        <p>Sistem Kasir & Deteksi Fraud Offline-First</p>
+    </header>
+
+    <main>
+        <section class="card">
+            <h2>Input Transaksi Baru</h2>
+            <form id="form-transaksi">
+                <div class="form-group">
+                    <label for="input-cashier">ID Kasir:</label>
+                    <input type="text" id="input-cashier" required placeholder="Contoh: C001">
+                </div>
+
+                <div class="form-group">
+                    <label for="input-type">Tipe Transaksi:</label>
+                    <select id="input-type" required>
+                        <option value="SALE">SALE (Penjualan)</option>
+                        <option value="REFUND">REFUND (Pengembalian)</option>
+                        <option value="VOID">VOID (Pembatalan)</option>
+                        <option value="DISCOUNT">DISCOUNT (Diskon)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="input-amount">Jumlah Nominal (Rp):</label>
+                    <input type="number" id="input-amount" required min="0" placeholder="Contoh: 50000">
+                </div>
+
+                <button type="submit" class="btn-submit">Simpan Transaksi</button>
+            </form>
+        </section>
+
+        <section class="card">
+            <h2>Ringkasan Transaksi Server</h2>
+            <div id="data-dashboard">
+                <h3 style="margin-top: 20px;">Riwayat Transaksi Terakhir</h3>
+        <table border="1" width="100%" style="border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr>
+                    <th>ID Kasir</th>
+                    <th>Tipe</th>
+                    <th>Nominal</th>
+                    <th>Tingkat Risiko</th>
+                </tr>
+            </thead>
+            <tbody id="body-riwayat-transaksi">
+                <tr>
+                    <td colspan="4">Memuat riwayat transaksi...</td>
+                </tr>
+            </tbody>
+        </table>
+                <p>Memuat data...</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="db.js"></script>
+    <script src="app.js"></script>
+
+    <script>
+        // Deklarasi variabel terlebih dahulu
+        let pendaftaranSW;
+        let pesanError;
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('sw.js')
+                    .then(function(registration) {
+                        pendaftaranSW = registration;
+                        console.log('Service Worker berhasil didaftarkan, scope:', pendaftaranSW.scope);
+                    })
+                    .catch(function(error) {
+                        pesanError = error;
+                        console.log('Pendaftaran Service Worker gagal:', pesanError);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>

@@ -115,6 +115,66 @@ Bisa pilih model saat request via `model_type`:
 
 ---
 
+## Progressive Web App (PWA)
+
+FraudGuard menyediakan **Progressive Web App** sebagai antarmuka kasir yang bersifat **offline-first**. Transaksi tetap bisa dicatat meskipun koneksi internet terputus, lalu otomatis disinkronkan dan di-score saat koneksi kembali.
+
+### Fitur PWA
+- **Offline-First** — Transaksi disimpan di IndexedDB lokal, lalu disinkronkan ke backend saat online
+- **Service Worker** — Caching aset statis (HTML, CSS, JS) untuk akses tanpa internet
+- **Installable** — Bisa di-install ke Home Screen (Android/iOS) atau Desktop (Chrome/Edge)
+- **Auto-Sync** — Sinkronisasi otomatis setiap 60 detik & saat koneksi kembali online
+- **Fraud Scoring Terintegrasi** — Setelah sync, backend otomatis men-score transaksi dan menampilkan tingkat risiko
+
+### Arsitektur PWA
+```
+Kasir input transaksi
+     ↓
+[IndexedDB Lokal] ← simpan offline-first
+     ↓ (saat online)
+[POST /api/transactions] → simpan ke SQLite backend
+     ↓
+[POST /api/batch-score] → scoring fraud oleh ML model
+     ↓
+UI diperbarui dengan tingkat risiko
+```
+
+### File PWA
+| File | Deskripsi |
+|---|---|
+| `pwa/index.html` | Halaman utama — form input transaksi & tabel riwayat |
+| `pwa/style.css` | Stylesheet UI kasir |
+| `pwa/app.js` | Logika UI — form handler, dashboard, riwayat transaksi |
+| `pwa/db.js` | IndexedDB + sinkronisasi + scoring (offline-first engine) |
+| `pwa/sw.js` | Service Worker — caching aset & strategi Cache First |
+| `pwa/manifest.json` | Web App Manifest — metadata untuk installasi PWA |
+| `pwa/icon-192x192.png` | Ikon PWA 192×192px |
+| `pwa/icon-512x512.png` | Ikon PWA 512×512px |
+
+### Menjalankan PWA
+
+**Prasyarat:** Pastikan Flask API sudah berjalan di `http://127.0.0.1:5000` (lihat Quick Start bagian 3).
+
+```bash
+# Serve PWA di localhost (Service Worker butuh localhost atau HTTPS)
+cd pwa
+python -m http.server 8080
+# Buka http://localhost:8080 di browser
+```
+
+### Mengetes PWA
+
+1. **Buka Chrome DevTools** → Tab **Application**:
+   - **Manifest** — Pastikan terdeteksi dan ikon tampil
+   - **Service Workers** — Pastikan status "Activated and running"
+   - **Cache Storage** — Pastikan cache `fraudguard-v1` berisi aset
+2. **Tes Offline** — Centang "Offline" di tab Network, lalu reload halaman
+3. **Install PWA** — Klik ikon install (⊕) di address bar Chrome, atau menu ⋮ → "Install FraudGuard Point of Sale"
+4. **Tes Input Transaksi** — Isi form & klik "Simpan Transaksi", data masuk ke IndexedDB
+5. **Tes Sinkronisasi** — Pastikan API berjalan, transaksi akan otomatis tersinkron & di-score
+
+---
+
 ## Struktur Project
 
 ```
@@ -142,6 +202,16 @@ FraudGuard/
 │
 ├─ api/
 │  └─ app.py                                  # Flask REST API
+│
+├─ pwa/                                        # [Tahap 7] Progressive Web App (offline-first)
+│  ├─ index.html                              # Halaman utama kasir
+│  ├─ style.css                               # Stylesheet UI
+│  ├─ app.js                                  # Logika UI & interaksi API
+│  ├─ db.js                                   # IndexedDB & sinkronisasi offline-first
+│  ├─ sw.js                                   # Service Worker (cache & offline)
+│  ├─ manifest.json                           # Web App Manifest
+│  ├─ icon-192x192.png                        # Ikon PWA 192px
+│  └─ icon-512x512.png                        # Ikon PWA 512px
 │
 ├─ requirements.txt
 └─ README.md
@@ -215,6 +285,18 @@ Model RF dan test split akan tersimpan otomatis ke `models/`.
 **A:** Seharusnya SAMA karena `random_state=42` di semua tempat. Jika berbeda:
 - Kernel di-restart di tengah jalan?
 - Data di database berubah?
+
+### Q: PWA tidak bisa di-install / Service Worker gagal
+**A:** Service Worker hanya berjalan di `localhost` atau `HTTPS`. Pastikan:
+- Serve file dari `pwa/` menggunakan `python -m http.server 8080`
+- Buka via `http://localhost:8080`, **bukan** `file://`
+- Gunakan Chrome/Edge (support PWA terbaik)
+
+### Q: PWA menampilkan "Memuat data..." terus
+**A:** Ini berarti Flask API belum jalan. Pastikan:
+1. Jalankan `python api/app.py` terlebih dahulu
+2. API berjalan di `http://127.0.0.1:5000`
+3. Cek browser console untuk error CORS atau koneksi
 
 ---
 
