@@ -237,13 +237,24 @@ async function renderDashboardView() {
 
     const sorted = [...txs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    sorted.slice(0, 10).forEach(t => {
+    sorted.slice(0, 20).forEach(t => {
         const tr = document.createElement("tr");
         if (t.risk_level === "CRITICAL") tr.className = "flagged-review need_authorization";
         else if (t.risk_level === "HIGH") tr.className = "flagged-review notify";
 
         const risk = t.risk_level || "PENDING";
         const badgeClass = `risk-${risk.toLowerCase()}`;
+        const isSynced = t.is_synced === 1;
+
+        const actionCell = isSynced
+            ? `<span title="Sudah tersimpan di server, tidak bisa dibatalkan" style="font-size:11.5px; color:var(--text-muted); display:inline-flex; align-items:center; gap:5px;">
+                   <i class="fa-solid fa-cloud-check" style="color:#10B981;"></i> Synced
+               </span>`
+            : `<button onclick="openCancelTxModal('${t.id}', '${t.transaction_type}', ${t.amount}, '${t.timestamp}')"
+                   style="padding:5px 11px; border:1px solid #EF4444; border-radius:6px; background:rgba(239,68,68,0.08); color:#EF4444; font-size:11.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px;"
+                   title="Batalkan transaksi lokal yang belum sync">
+                   <i class="fa-solid fa-trash-can"></i> Cancel
+               </button>`;
 
         tr.innerHTML = `
             <td><code>${t.id.substring(0, 8)}...</code></td>
@@ -252,6 +263,7 @@ async function renderDashboardView() {
             <td><strong>${formatCurrencyRupiah(t.amount)}</strong></td>
             <td><span class="badge ${badgeClass}">${risk}</span></td>
             <td class="text-muted">${new Date(t.timestamp).toLocaleTimeString('id-ID')}</td>
+            <td>${actionCell}</td>
         `;
         tableBody.appendChild(tr);
     });
@@ -334,6 +346,48 @@ document.getElementById("form-transaksi").addEventListener("submit", async funct
         console.error("Form submit save failed", err);
         triggerToast("Save Failed", "Failed to cache transaction locally.", "critical");
     }
+});
+
+//  CANCEL / DELETE LOCAL TRANSACTION
+
+let _pendingCancelTxId = null;
+
+function openCancelTxModal(txId, txType, txAmount, txTimestamp) {
+    _pendingCancelTxId = txId;
+    document.getElementById("cancel-tx-id").textContent = txId.substring(0, 8) + "...";
+    document.getElementById("cancel-tx-type").textContent = txType;
+    document.getElementById("cancel-tx-amount").textContent = formatCurrencyRupiah(txAmount);
+    document.getElementById("cancel-tx-time").textContent = new Date(txTimestamp).toLocaleString("id-ID");
+    const modal = document.getElementById("cancel-tx-modal");
+    modal.style.display = "flex";
+}
+
+function closeCancelTxModal() {
+    _pendingCancelTxId = null;
+    document.getElementById("cancel-tx-modal").style.display = "none";
+}
+
+async function confirmCancelTransaction() {
+    if (!_pendingCancelTxId) return;
+    try {
+        await deleteLocalTransaction(_pendingCancelTxId);
+        triggerToast(
+            "Transaksi Dibatalkan",
+            "Input transaksi lokal berhasil dihapus dari cache browser.",
+            "success"
+        );
+        closeCancelTxModal();
+        await renderDashboardView();
+        await updateSyncStatusView();
+    } catch (err) {
+        console.error("Cancel transaction failed:", err);
+        triggerToast("Gagal", "Tidak bisa menghapus transaksi. Coba lagi.", "critical");
+    }
+}
+
+// Close cancel modal on backdrop click
+document.getElementById("cancel-tx-modal").addEventListener("click", function (e) {
+    if (e.target === this) closeCancelTxModal();
 });
 
 //  INITIALIZE BINDINGS 

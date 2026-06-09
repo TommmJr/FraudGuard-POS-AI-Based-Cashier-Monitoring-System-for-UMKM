@@ -90,3 +90,15 @@ function formatCurrencyRupiah(amount) {
         maximumFractionDigits: 0
     }).format(amount);
 }
+
+// Delete a single transaction record from IndexedDB by its id
+async function deleteLocalTransaction(txId) {
+    if (!activeDB) await initIndexedDB();
+    return new Promise((resolve, reject) => {
+        const tx = activeDB.transaction("transactions", "readwrite");
+        const store = tx.objectStore("transactions");
+        const req = store.delete(txId);
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => reject(req.error);
+    });
+}

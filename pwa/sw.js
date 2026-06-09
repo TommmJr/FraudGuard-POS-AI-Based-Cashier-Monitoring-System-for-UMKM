@@ -1,4 +1,4 @@
-const NAMA_CACHE = 'fraudguard';
+const NAMA_CACHE = 'fraudguard-v6';
 
 // Daftar file yang wajib di-cache untuk tampilan offline dasar
 const ASET_DI_CACHE = [

@@ -27,12 +27,6 @@
             <span>FraudGuard</span>
             <span class="tag">PWA POS</span>
         </div>
-        <div>
-            <a href="https://github.com" target="_blank"
-                style="color: #FFFFFF; font-size: 20px; text-decoration: none;">
-                <i class="fa-brands fa-github"></i>
-            </a>
-        </div>
     </header>
 
     <!-- Hero Section -->
@@ -185,27 +179,36 @@
     </footer>
 
     <!-- Login Modal -->
-    <div id="login-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:500; align-items:center; justify-content:center; backdrop-filter:blur(6px);">
-        <div class="login-modal-box" style="max-width:420px; width:90%; background:#161B2E; border-radius:20px; padding:36px; border:1px solid rgba(255,255,255,0.08); box-shadow:0 30px 60px rgba(0,0,0,0.5);">
+    <div id="login-modal"
+        style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:500; align-items:center; justify-content:center; backdrop-filter:blur(6px);">
+        <div class="login-modal-box"
+            style="max-width:420px; width:90%; background:#161B2E; border-radius:20px; padding:36px; border:1px solid rgba(255,255,255,0.08); box-shadow:0 30px 60px rgba(0,0,0,0.5);">
             <div style="display:flex; align-items:center; gap:14px; margin-bottom:28px;">
-                <div style="width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg,#DC2626,#7F1D1D); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <div
+                    style="width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg,#DC2626,#7F1D1D); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                     <i class="fa-solid fa-shield-halved" style="color:white; font-size:20px;"></i>
                 </div>
                 <div>
                     <h3 style="margin:0 0 2px; font-size:16px; font-weight:800; color:#fff;">FraudGuard POS</h3>
-                    <p id="login-modal-title" style="margin:0; font-size:13px; color:rgba(255,255,255,0.5); font-weight:500;">Login</p>
+                    <p id="login-modal-title"
+                        style="margin:0; font-size:13px; color:rgba(255,255,255,0.5); font-weight:500;">Login</p>
                 </div>
-                <button onclick="closeLoginModal()" style="margin-left:auto; background:transparent; border:none; color:rgba(255,255,255,0.4); font-size:20px; cursor:pointer; padding:4px 8px; border-radius:6px;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">&times;</button>
+                <button onclick="closeLoginModal()"
+                    style="margin-left:auto; background:transparent; border:none; color:rgba(255,255,255,0.4); font-size:20px; cursor:pointer; padding:4px 8px; border-radius:6px;"
+                    onmouseover="this.style.color='#fff'"
+                    onmouseout="this.style.color='rgba(255,255,255,0.4)'">&times;</button>
             </div>
 
             <form onsubmit="submitLogin(event)">
                 <div style="margin-bottom:16px;">
-                    <label style="display:block; font-size:12px; font-weight:700; color:rgba(255,255,255,0.5); letter-spacing:0.5px; text-transform:uppercase; margin-bottom:8px;">Username</label>
+                    <label
+                        style="display:block; font-size:12px; font-weight:700; color:rgba(255,255,255,0.5); letter-spacing:0.5px; text-transform:uppercase; margin-bottom:8px;">Username</label>
                     <input id="login-username-field" type="text" readonly
                         style="width:100%; height:44px; border:1.5px solid rgba(255,255,255,0.1); border-radius:10px; padding:0 14px; font-size:14px; font-weight:600; background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.6); box-sizing:border-box; cursor:not-allowed; outline:none;">
                 </div>
                 <div style="margin-bottom:16px;">
-                    <label style="display:block; font-size:12px; font-weight:700; color:rgba(255,255,255,0.5); letter-spacing:0.5px; text-transform:uppercase; margin-bottom:8px;">Password</label>
+                    <label
+                        style="display:block; font-size:12px; font-weight:700; color:rgba(255,255,255,0.5); letter-spacing:0.5px; text-transform:uppercase; margin-bottom:8px;">Password</label>
                     <input id="login-password-field" type="password" placeholder="Masukkan password..."
                         style="width:100%; height:44px; border:1.5px solid rgba(255,255,255,0.12); border-radius:10px; padding:0 14px; font-size:14px; background:rgba(255,255,255,0.06); color:#fff; box-sizing:border-box; outline:none; transition:border-color 0.2s;"
                         onfocus="this.style.borderColor='rgba(220,38,38,0.6)'"
@@ -213,7 +216,8 @@
                 </div>
 
                 <!-- Error message -->
-                <div id="login-error-msg" style="display:none; background:rgba(220,38,38,0.12); border:1px solid rgba(220,38,38,0.3); border-radius:8px; padding:10px 14px; font-size:13px; color:#FCA5A5; margin-bottom:16px;">
+                <div id="login-error-msg"
+                    style="display:none; background:rgba(220,38,38,0.12); border:1px solid rgba(220,38,38,0.3); border-radius:8px; padding:10px 14px; font-size:13px; color:#FCA5A5; margin-bottom:16px;">
                     <i class="fa-solid fa-circle-exclamation"></i> <span></span>
                 </div>
 

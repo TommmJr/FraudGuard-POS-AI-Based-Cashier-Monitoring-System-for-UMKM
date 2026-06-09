@@ -204,6 +204,7 @@
                                     <th>Amount</th>
                                     <th>Risk Level</th>
                                     <th>Time</th>
+                                    <th>Aksi</th>
                                 </tr>
                             </thead>
                             <tbody id="body-riwayat-transaksi">
@@ -242,6 +243,43 @@
             </div>
 
     </main>
+
+    <!-- Cancel Transaction Confirmation Modal -->
+    <div id="cancel-tx-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:300; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+        <div style="max-width:440px; width:90%; background:var(--bg-card); border-radius:16px; padding:28px; border:1px solid var(--border-color); box-shadow:0 25px 50px rgba(0,0,0,0.4);">
+            <div style="display:flex; align-items:center; gap:14px; margin-bottom:18px;">
+                <div style="width:48px; height:48px; border-radius:50%; background:rgba(239,68,68,0.1); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="fa-solid fa-trash-can" style="font-size:20px; color:#EF4444;"></i>
+                </div>
+                <div>
+                    <h3 style="font-size:16px; font-weight:800; color:var(--text-main); margin:0 0 3px;">Batalkan Transaksi?</h3>
+                    <p style="font-size:12.5px; color:var(--text-muted); margin:0;">Transaksi lokal yang belum sync ke server</p>
+                </div>
+            </div>
+
+            <div style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.18); border-radius:10px; padding:14px 16px; margin-bottom:18px;">
+                <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Detail Transaksi</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13.5px;">
+                    <div><span style="color:var(--text-muted);">ID:</span> <code id="cancel-tx-id" style="font-size:12px;"></code></div>
+                    <div><span style="color:var(--text-muted);">Tipe:</span> <strong id="cancel-tx-type"></strong></div>
+                    <div><span style="color:var(--text-muted);">Jumlah:</span> <strong id="cancel-tx-amount" style="color:#EF4444;"></strong></div>
+                    <div><span style="color:var(--text-muted);">Waktu:</span> <span id="cancel-tx-time"></span></div>
+                </div>
+            </div>
+
+            <div style="background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.2); border-radius:8px; padding:10px 14px; margin-bottom:18px; font-size:12.5px; color:var(--text-main);">
+                <i class="fa-solid fa-triangle-exclamation" style="color:#F59E0B;"></i>
+                Transaksi ini <strong>hanya dihapus dari cache lokal browser</strong>. Karena belum tersinkronisasi ke server, pembatalan ini tidak akan tercatat di laporan Owner.
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button onclick="closeCancelTxModal()" style="padding:10px 18px; border:1px solid var(--border-color); border-radius:8px; background:transparent; color:var(--text-main); font-weight:600; cursor:pointer; font-size:13.5px;">Batal</button>
+                <button onclick="confirmCancelTransaction()" style="padding:10px 18px; border:none; border-radius:8px; background:#DC2626; color:white; font-weight:700; cursor:pointer; font-size:13.5px; display:inline-flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-trash-can"></i> Ya, Batalkan Transaksi
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Shared JS utilities -->
     <script src="../shared/common.js"></script>
