@@ -1,5 +1,3 @@
-// TAHAP 7 - Lapisan offline-first (PWA).
-
 const DB_NAME = "fraudguard_local";
 const DB_VERSION = 1;
 const API_BASE = "http://127.0.0.1:5000/api";

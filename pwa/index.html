@@ -1,95 +1,184 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FraudGuard Point of Sale</title>
-    <link rel="icon" href="data:,">
-    
-    <link rel="manifest" href="manifest.json">
-    
-    <link rel="stylesheet" href="style.css">
-    
-    <meta name="theme-color" content="#2c3e50">
+    <title>FraudGuard POS - AI Cashier Monitoring System</title>
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="index.css">
 </head>
+
 <body>
 
+    <!-- Header Section -->
     <header>
-        <h1>FraudGuard POS</h1>
-        <p>Sistem Kasir & Deteksi Fraud Offline-First</p>
+        <div class="logo">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>FraudGuard</span>
+            <span class="tag">PWA POS</span>
+        </div>
+        <div>
+            <a href="https://github.com" target="_blank"
+                style="color: #FFFFFF; font-size: 20px; text-decoration: none;">
+                <i class="fa-brands fa-github"></i>
+            </a>
+        </div>
     </header>
 
-    <main>
-        <section class="card">
-            <h2>Input Transaksi Baru</h2>
-            <form id="form-transaksi">
-                <div class="form-group">
-                    <label for="input-cashier">ID Kasir:</label>
-                    <input type="text" id="input-cashier" required placeholder="Contoh: C001">
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-badge">
+            <i class="fa-solid fa-brain"></i> Powered by AI Anomaly Detection
+        </div>
+        <h1>Mencegah Fraud Kasir UMKM dengan <span>FraudGuard AI</span></h1>
+        <p>Sistem POS Pintar untuk memantau transaksi, mendeteksi penyalahgunaan refund, dan menjaga profit usaha Anda
+            secara real-time.</p>
+    </section>
+
+    <!-- Login Area Workspace -->
+    <section class="workspace">
+        <div class="section-title">Pilih Akun Login untuk Masuk</div>
+
+        <div class="role-grid">
+
+            <!-- Owner Column -->
+            <div class="owner-column">
+                <div
+                    style="font-weight: 700; font-size: 12px; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px;">
+                    PEMILIK UMKM</div>
+
+                <div class="login-card owner-card" onclick="loginAsOwner()">
+                    <div class="card-avatar">
+                        <i class="fa-solid fa-user-tie"></i>
+                    </div>
+                    <h3>Owner Panel</h3>
+                    <p>owner@fraudguard.id</p>
+                    <button class="btn-enter">
+                        <span>Masuk Panel</span> <i class="fa-solid fa-chevron-right"></i>
+                    </button>
                 </div>
-
-                <div class="form-group">
-                    <label for="input-type">Tipe Transaksi:</label>
-                    <select id="input-type" required>
-                        <option value="SALE">SALE (Penjualan)</option>
-                        <option value="REFUND">REFUND (Pengembalian)</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="input-amount">Jumlah Nominal (Rp):</label>
-                    <input type="number" id="input-amount" required min="0" placeholder="Contoh: 50000">
-                </div>
-
-                <button type="submit" class="btn-submit">Simpan Transaksi</button>
-            </form>
-        </section>
-
-        <section class="card">
-            <h2>Ringkasan Transaksi Server</h2>
-            <div id="data-dashboard">
-                <h3 style="margin-top: 20px;">Riwayat Transaksi Terakhir</h3>
-        <table border="1" width="100%" style="border-collapse: collapse; text-align: left;">
-            <thead>
-                <tr>
-                    <th>ID Kasir</th>
-                    <th>Tipe</th>
-                    <th>Nominal</th>
-                    <th>Tingkat Risiko</th>
-                </tr>
-            </thead>
-            <tbody id="body-riwayat-transaksi">
-                <tr>
-                    <td colspan="4">Memuat riwayat transaksi...</td>
-                </tr>
-            </tbody>
-        </table>
-                <p>Memuat data...</p>
             </div>
-        </section>
-    </main>
 
-    <script src="db.js"></script>
-    <script src="app.js"></script>
+            <!-- Cashier Column -->
+            <div class="cashier-column">
+                <div
+                    style="font-weight: 700; font-size: 12px; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px;">
+                    KASIR TOKO (DUMMY POS)</div>
 
-    <script>
-        // Deklarasi variabel terlebih dahulu
-        let pendaftaranSW;
-        let pesanError;
+                <div class="cashier-list-grid">
+                    <!-- Kasir 1 -->
+                    <div class="login-card" onclick="loginAsCashier('CSH-001')">
+                        <div class="card-avatar"><i class="fa-solid fa-cash-register"></i></div>
+                        <h3>CSH-001</h3>
+                        <p>Kasir Utama Shift Pagi</p>
+                        <button class="btn-enter">Kasir 1 <i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
 
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('sw.js')
-                    .then(function(registration) {
-                        pendaftaranSW = registration;
-                        console.log('Service Worker berhasil didaftarkan, scope:', pendaftaranSW.scope);
-                    })
-                    .catch(function(error) {
-                        pesanError = error;
-                        console.log('Pendaftaran Service Worker gagal:', pesanError);
-                    });
-            });
-        }
-    </script>
+                    <!-- Kasir 2 -->
+                    <div class="login-card" onclick="loginAsCashier('CSH-002')">
+                        <div class="card-avatar"><i class="fa-solid fa-cash-register"></i></div>
+                        <h3>CSH-002</h3>
+                        <p>Kasir Shift Pagi</p>
+                        <button class="btn-enter">Kasir 2 <i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+
+                    <!-- Kasir 3 -->
+                    <div class="login-card" onclick="loginAsCashier('CSH-003')">
+                        <div class="card-avatar"><i class="fa-solid fa-cash-register"></i></div>
+                        <h3>CSH-003</h3>
+                        <p>Kasir Shift Siang</p>
+                        <button class="btn-enter">Kasir 3 <i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+
+                    <!-- Kasir 4 -->
+                    <div class="login-card" onclick="loginAsCashier('CSH-004')">
+                        <div class="card-avatar"><i class="fa-solid fa-cash-register"></i></div>
+                        <h3>CSH-004</h3>
+                        <p>Kasir Shift Malam</p>
+                        <button class="btn-enter">Kasir 4 <i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+
+                    <!-- Kasir 5 -->
+                    <div class="login-card" onclick="loginAsCashier('CSH-005')">
+                        <div class="card-avatar"><i class="fa-solid fa-cash-register"></i></div>
+                        <h3>CSH-005</h3>
+                        <p>Kasir Magang Shift Malam</p>
+                        <button class="btn-enter">Kasir 5 <i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Stats & Info -->
+    <section class="workspace" style="margin-top: 0;">
+        <div class="stats-section">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <h2>1.420+</h2>
+                    <p>Transaksi Teranalisis</p>
+                </div>
+                <div class="stat-item">
+                    <h2>99.4%</h2>
+                    <p>Akurasi Deteksi AI</p>
+                </div>
+                <div class="stat-item">
+                    <h2>&lt; 2 Detik</h2>
+                    <p>Waktu Analisis Batch</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Grid -->
+        <div class="features-section">
+            <h3 class="features-title">Mengapa Memilih FraudGuard?</h3>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fa-solid fa-wifi-slash"></i></div>
+                    <h4>Offline-First POS Sync</h4>
+                    <p>Transaksi tetap dicatat lokal menggunakan IndexedDB saat internet mati, dan otomatis
+                        tersinkronisasi serta diskor oleh AI saat kembali online.</p>
+                </div>
+
+                <div class="feature-card red-feature">
+                    <div class="feature-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <h4>AI Anomaly Detection</h4>
+                    <p>Menganalisis frekuensi refund, pola nominal, z-score nominal transaksi terhadap rata-rata kasir
+                        secara real-time untuk mendeteksi anomali.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fa-solid fa-chart-line"></i></div>
+                    <h4>Owner Monitoring Dashboard</h4>
+                    <p>Dashboard terpusat bertema analitik merah premium bagi owner untuk mengawasi rasio refund kasir
+                        dan anomali secara real-time.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-brand">
+            <i class="fa-solid fa-shield-halved"></i> FraudGuard POS
+        </div>
+        <p>AI-Based Cashier Monitoring System for UMKM - Capstone Project 2026</p>
+        <p style="opacity: 0.5; font-size: 11px;">Designed for Google Chrome and Modern Browsers. All rights reserved.
+        </p>
+    </footer>
+
+    <script src="index.js" defer></script>
 </body>
+
 </html>

@@ -73,12 +73,8 @@ def score_transactions(
 
     #  Pilih jalur: dengan konteks historis atau tanpa 
     if df_context is not None and not df_context.empty:
+
         # JALUR KONTEKS (dipakai oleh API /score):
-        #   1. Tandai baris "baru" dengan flag internal _is_new
-        #   2. Gabungkan: histori (konteks) dulu, lalu transaksi baru
-        #   3. Hitung fitur dari data gabungan — z-score, rolling, dll.
-        #      kini memiliki konteks penuh
-        #   4. Ambil HANYA baris transaksi baru untuk prediksi & output
         df_new = df.copy()
         df_new["_is_new"] = True
 
@@ -102,10 +98,7 @@ def score_transactions(
         df_out     = combined[new_mask].drop(columns=["_is_new"]).reset_index(drop=True)
 
     else:
-        # JALUR TANPA KONTEKS (perilaku lama — dipakai notebook):
-        #   Hitung fitur langsung dari df saja.
-        #   Cocok saat seluruh data historis sudah ada dalam df
-        #   (seperti di 03_evaluate.ipynb yang memakai semua data).
+        # JALUR TANPA KONTEKS (perilaku lama  dipakai notebook):
         X_new  = build_pola_b_matrix(df, if_model=if_model)
         df_out = df.copy()
 

@@ -139,13 +139,23 @@ Kasir input transaksi
 UI diperbarui dengan tingkat risiko
 ```
 
-### File PWA
-| File | Deskripsi |
+### File PWA & Frontend Restructured
+
+Struktur file frontend berada langsung di bawah direktori `pwa/` yang memisahkan HTML, CSS, dan Javascript secara terpisah:
+
+| File / Folder | Deskripsi |
 |---|---|
-| `pwa/index.html` | Halaman utama — form input transaksi & tabel riwayat |
-| `pwa/style.css` | Stylesheet UI kasir |
-| `pwa/app.js` | Logika UI — form handler, dashboard, riwayat transaksi |
-| `pwa/db.js` | IndexedDB + sinkronisasi + scoring (offline-first engine) |
+| `pwa/index.html` | Halaman login utama, pilihan role Owner & 5 Cashier |
+| `pwa/index.css` | Style Halaman login utama/landing page |
+| `pwa/index.js` | Logika Halaman login utama & registrasi Service Worker |
+| `pwa/shared/common.css` | CSS global (reset, font, animations, utility) |
+| `pwa/shared/common.js` | Utilitas JS bersama (API wrapper, IndexedDB, Toast alert) |
+| `pwa/owner/owner-dashboard.html` | UI Dashboard Pemilik (Owner Panel) |
+| `pwa/owner/owner.css` | Style Dashboard Pemilik bertema merah gelap |
+| `pwa/owner/owner.js` | Logika Dashboard Pemilik (grafik analitik, sortable table, detail modal) |
+| `pwa/cashier/cashier-dashboard.html` | UI Dashboard Kasir (Cashier Panel) |
+| `pwa/cashier/cashier.css` | Style Dashboard Kasir bertema biru |
+| `pwa/cashier/cashier.js` | Logika Dashboard Kasir (form input, offline IndexedDB sync, jam realtime) |
 | `pwa/sw.js` | Service Worker — caching aset & strategi Cache First |
 | `pwa/manifest.json` | Web App Manifest — metadata untuk installasi PWA |
 | `pwa/icon-192x192.png` | Ikon PWA 192×192px |
@@ -156,7 +166,7 @@ UI diperbarui dengan tingkat risiko
 **Prasyarat:** Pastikan Flask API sudah berjalan di `http://127.0.0.1:5000` (lihat Quick Start bagian 3).
 
 ```bash
-# Serve PWA di localhost (Service Worker butuh localhost atau HTTPS)
+# Serve PWA di localhost
 cd pwa
 python -m http.server 8080
 # Buka http://localhost:8080 di browser
@@ -204,12 +214,14 @@ FraudGuard/
 │  └─ app.py                                  # Flask REST API
 │
 ├─ pwa/                                        # [Tahap 7] Progressive Web App (offline-first)
-│  ├─ index.html                              # Halaman utama kasir
-│  ├─ style.css                               # Stylesheet UI
-│  ├─ app.js                                  # Logika UI & interaksi API
-│  ├─ db.js                                   # IndexedDB & sinkronisasi offline-first
-│  ├─ sw.js                                   # Service Worker (cache & offline)
-│  ├─ manifest.json                           # Web App Manifest
+│  ├─ index.html                               # Landing page (root entrance)
+│  ├─ index.css                                # Style Landing page
+│  ├─ index.js                                 # Logika Landing page & Service Worker registration
+│  ├─ shared/                                  # Modul bersama (common.css, common.js)
+│  ├─ owner/                                   # Dashboard Owner (Stripe/Datadog theme)
+│  ├─ cashier/                                 # Dashboard Kasir (offline IndexedDB)
+│  ├─ sw.js                                    # Service Worker (caching PWA)
+│  ├─ manifest.json                            # Web App Manifest
 │  ├─ icon-192x192.png                        # Ikon PWA 192px
 │  └─ icon-512x512.png                        # Ikon PWA 512px
 │

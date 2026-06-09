@@ -1,0 +1,406 @@
+/* Stylesheet for FraudGuard Landing Page */
+
+:root {
+    --primary-dark: #0F172A;
+    --primary-blue: #2563EB;
+    --primary-hover: #1D4ED8;
+    --accent-red: #EF4444;
+    --accent-red-hover: #DC2626;
+    --bg-body: #F8FAFC;
+    --bg-card: #FFFFFF;
+    --text-main: #1E293B;
+    --text-muted: #64748B;
+    --border-color: #E2E8F0;
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+}
+
+body {
+    background-color: var(--bg-body);
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+}
+
+/* Header Style */
+header {
+    background-color: var(--primary-dark);
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #FFFFFF;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-md);
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
+.logo i {
+    color: var(--primary-blue);
+    filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.6));
+}
+
+.logo span {
+    background: linear-gradient(135deg, #FFFFFF, var(--primary-blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.logo .tag {
+    font-size: 10px;
+    font-weight: 700;
+    background-color: var(--accent-red);
+    color: #FFFFFF;
+    padding: 3px 8px;
+    border-radius: 20px;
+    text-transform: uppercase;
+}
+
+/* Hero Section */
+.hero {
+    background: radial-gradient(circle at top, #1E293B, var(--primary-dark));
+    color: #FFFFFF;
+    padding: 80px 40px 100px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: radial-gradient(rgba(37, 99, 235, 0.1) 1px, transparent 1px);
+    background-size: 20px 20px;
+    opacity: 0.8;
+    pointer-events: none;
+}
+
+.hero-badge {
+    background-color: rgba(37, 99, 235, 0.2);
+    color: #93C5FD;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 16px;
+    border-radius: 30px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 24px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(147, 197, 253, 0.2);
+}
+
+.hero-badge i {
+    color: var(--accent-red);
+}
+
+.hero h1 {
+    font-size: 44px;
+    font-weight: 850;
+    line-height: 1.2;
+    max-width: 800px;
+    margin-bottom: 20px;
+}
+
+.hero h1 span {
+    background: linear-gradient(135deg, var(--primary-blue), #60A5FA);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.hero p {
+    font-size: 18px;
+    color: #94A3B8;
+    max-width: 600px;
+    line-height: 1.6;
+    margin-bottom: 40px;
+}
+
+/* Main Workspace: Role Selection & Logins */
+.workspace {
+    max-width: 1200px;
+    margin: 40px auto 60px;
+    padding: 0 20px;
+    width: 100%;
+    z-index: 10;
+}
+
+.section-title {
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.role-grid {
+    display: grid;
+    grid-template-columns: 1fr 2.5fr;
+    gap: 30px;
+}
+
+@media (max-width: 900px) {
+    .role-grid {
+        grid-template-columns: 1fr;
+    }
+    .hero h1 {
+        font-size: 32px;
+    }
+}
+
+.owner-column, .cashier-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.cashier-list-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.login-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 30px 24px;
+    box-shadow: var(--shadow-md);
+    text-align: center;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.login-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-blue);
+}
+
+.login-card.owner-card:hover {
+    border-color: var(--accent-red);
+}
+
+.login-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 5px;
+    background-color: var(--primary-blue);
+}
+
+.login-card.owner-card::after {
+    background-color: var(--accent-red);
+}
+
+.card-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: rgba(37, 99, 235, 0.08);
+    color: var(--primary-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 20px;
+}
+
+.login-card.owner-card .card-avatar {
+    background-color: rgba(239, 68, 68, 0.08);
+    color: var(--accent-red);
+}
+
+.login-card h3 {
+    font-size: 18px;
+    font-weight: 750;
+    margin-bottom: 6px;
+}
+
+.login-card p {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+}
+
+.btn-enter {
+    width: 100%;
+    height: 40px;
+    border-radius: 8px;
+    border: none;
+    background-color: var(--primary-blue);
+    color: #FFFFFF;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.login-card.owner-card .btn-enter {
+    background-color: var(--accent-red);
+}
+
+.login-card:hover .btn-enter {
+    background-color: var(--primary-hover);
+}
+
+.login-card.owner-card:hover .btn-enter {
+    background-color: var(--accent-red-hover);
+}
+
+/* Stats & Security Section */
+.stats-section {
+    background-color: #FFFFFF;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 40px;
+    margin-bottom: 50px;
+    box-shadow: var(--shadow-sm);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+    text-align: center;
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.stat-item h2 {
+    font-size: 36px;
+    font-weight: 850;
+    color: var(--primary-blue);
+    margin-bottom: 6px;
+}
+
+.stat-item p {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* Features Section */
+.features-section {
+    margin-bottom: 60px;
+}
+
+.features-title {
+    text-align: center;
+    margin-bottom: 40px;
+    font-size: 24px;
+    font-weight: 800;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+}
+
+@media (max-width: 900px) {
+    .features-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.feature-card {
+    background-color: #FFFFFF;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 30px;
+    box-shadow: var(--shadow-sm);
+}
+
+.feature-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+}
+
+.feature-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background-color: rgba(37, 99, 235, 0.08);
+    color: var(--primary-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    margin-bottom: 20px;
+}
+
+.feature-card.red-feature .feature-icon {
+    background-color: rgba(239, 68, 68, 0.08);
+    color: var(--accent-red);
+}
+
+.feature-card h4 {
+    font-size: 16px;
+    font-weight: 750;
+    margin-bottom: 8px;
+}
+
+.feature-card p {
+    font-size: 13.5px;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+/* Footer */
+footer {
+    background-color: var(--primary-dark);
+    color: #94A3B8;
+    padding: 40px 20px;
+    text-align: center;
+    font-size: 13px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin-top: auto;
+}
+
+footer p {
+    margin-bottom: 12px;
+}
+
+.footer-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #FFFFFF;
+    font-weight: 750;
+    margin-bottom: 20px;
+}

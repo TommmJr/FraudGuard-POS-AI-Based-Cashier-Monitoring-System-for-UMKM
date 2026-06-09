@@ -1,13 +1,22 @@
-const NAMA_CACHE = 'fraudguard-v1';
+const NAMA_CACHE = 'fraudguard-v4';
 
 // Daftar file yang wajib di-cache untuk tampilan offline dasar
 const ASET_DI_CACHE = [
     './',
     './index.html',
-    './style.css',
-    './app.js',
-    './db.js',
-    './manifest.json'
+    './index.css',
+    './index.js',
+    './owner/owner-dashboard.html',
+    './owner/owner.css',
+    './owner/owner.js',
+    './cashier/cashier-dashboard.html',
+    './cashier/cashier.css',
+    './cashier/cashier.js',
+    './shared/common.css',
+    './shared/common.js',
+    './manifest.json',
+    './icon-192x192.png',
+    './icon-512x512.png'
 ];
 
 // 1. Fase Install: Menyimpan aset ke cache
@@ -66,7 +75,7 @@ self.addEventListener('fetch', function (event) {
     }
 
     // Strategi "Cache First" untuk aset statis (HTML, CSS, JS)
-    janjiAmbilData = caches.match(event.request).then(function (response) {
+    janjiAmbilData = caches.match(event.request, { ignoreSearch: true }).then(function (response) {
         let salinanPermintaan;
 
         // Jika file ditemukan di cache, langsung kembalikan file tersebut

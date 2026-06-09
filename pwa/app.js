@@ -1,5 +1,4 @@
 // Mengatur interaksi UI, mengambil data API, dan menangani form kasir
-
 // Fungsi untuk mengambil data statistik dari API dan menampilkannya
 async function muatDashboard() {
     let urlAPI;
