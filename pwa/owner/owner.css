@@ -25,7 +25,7 @@
     --bg-glass: var(--glass-dark);
 }
 
-/* Sidebar Custom Styling (Stripe & AdminLTE style) */
+/*Sidebar Custom Styling*/
 aside {
     width: 260px;
     background-color: var(--bg-sidebar);

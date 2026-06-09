@@ -319,7 +319,7 @@ document.getElementById("form-transaksi").addEventListener("submit", async funct
         timestamp: new Date().toISOString(),
         transaction_type: typeInput,
         amount: amountInput,
-        risk_level: null, // Scored on backend
+        risk_level: null,
         is_synced: 0
     };
 
@@ -347,10 +347,7 @@ window.addEventListener("offline", () => {
     refreshNetworkStatus(false);
 });
 
-// 
 //  DEACTIVATION ENFORCEMENT (set by Owner panel)
-// 
-
 function isCashierDeactivated() {
     try {
         const list = JSON.parse(localStorage.getItem("fg_deactivated_cashiers") || "[]");
@@ -362,24 +359,48 @@ function checkDeactivationBanner() {
     let banner = document.getElementById("deactivation-banner");
     if (isCashierDeactivated()) {
         if (!banner) {
+            const alreadyRequested = getReactivationRequests().includes(loggedInCashierId);
             banner = document.createElement("div");
             banner.id = "deactivation-banner";
-            banner.style.cssText = `
-                position: fixed; top: 0; left: 0; right: 0; z-index: 999;
-                background: linear-gradient(135deg, #7F1D1D, #DC2626);
-                color: white; padding: 14px 24px;
-                display: flex; align-items: center; gap: 14px;
-                font-size: 14px; font-weight: 600;
-                box-shadow: 0 4px 20px rgba(220,38,38,0.4);
-                animation: slideDown 0.4s ease;
-            `;
+            banner.style.cssText = [
+                "position:fixed; top:0; left:0; right:0; z-index:999;",
+                "background:linear-gradient(135deg,#7F1D1D,#DC2626);",
+                "color:white; padding:12px 24px;",
+                "display:flex; align-items:center; gap:14px; flex-wrap:wrap;",
+                "font-size:13.5px; font-weight:600;",
+                "box-shadow:0 4px 20px rgba(220,38,38,0.4);"
+            ].join("");
             banner.innerHTML = `
-                <i class="fa-solid fa-user-slash" style="font-size:20px;"></i>
-                <span><strong>AKSES DINONAKTIFKAN OLEH OWNER</strong> — Kasir ${loggedInCashierId} tidak dapat melakukan transaksi REFUND atau menyimpan transaksi baru. Hubungi Owner untuk mengaktifkan kembali.</span>
+                <i class="fa-solid fa-user-slash" style="font-size:20px; flex-shrink:0;"></i>
+                <span style="flex:1;"><strong>AKSES DINONAKTIFKAN OLEH OWNER</strong> &mdash;
+                Kasir <strong>${loggedInCashierId}</strong> tidak dapat melakukan REFUND atau menyimpan transaksi baru.</span>
+                <button id="request-reactivate-btn"
+                    onclick="requestReactivation()"
+                    style="
+                        padding:8px 16px; border:2px solid rgba(255,255,255,0.7);
+                        border-radius:8px; background:rgba(255,255,255,0.1);
+                        color:white; font-weight:700; font-size:12.5px;
+                        cursor:pointer; white-space:nowrap;
+                        display:inline-flex; align-items:center; gap:7px;
+                        transition:background 0.2s;"
+                    onmouseover="this.style.background='rgba(255,255,255,0.2)'"
+                    onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+                    ${alreadyRequested
+                    ? '<i class="fa-solid fa-clock"></i> Menunggu Persetujuan Owner'
+                    : '<i class="fa-solid fa-paper-plane"></i> Ajukan Permintaan Aktif Kembali'}
+                </button>
             `;
             document.body.prepend(banner);
-            // Push main content down
             document.querySelector("main") && (document.querySelector("main").style.marginTop = "60px");
+        } else {
+            // Refresh button label if request state changed
+            const btn = document.getElementById("request-reactivate-btn");
+            if (btn) {
+                const alreadyRequested = getReactivationRequests().includes(loggedInCashierId);
+                btn.innerHTML = alreadyRequested
+                    ? '<i class="fa-solid fa-clock"></i> Menunggu Persetujuan Owner'
+                    : '<i class="fa-solid fa-paper-plane"></i> Ajukan Permintaan Aktif Kembali';
+            }
         }
     } else {
         if (banner) {
@@ -389,22 +410,38 @@ function checkDeactivationBanner() {
     }
 }
 
+//  Reactivation Request Helpers 
+function getReactivationRequests() {
+    try { return JSON.parse(localStorage.getItem("fg_reactivation_requests") || "[]"); }
+    catch { return []; }
+}
+
+function requestReactivation() {
+    const requests = getReactivationRequests();
+    if (requests.includes(loggedInCashierId)) {
+        triggerToast("Sudah Diajukan", "Permintaan aktifasi sudah terkirim. Harap tunggu persetujuan Owner.", "warning");
+        return;
+    }
+    requests.push(loggedInCashierId);
+    localStorage.setItem("fg_reactivation_requests", JSON.stringify(requests));
+    // Trigger cross-tab notification to owner
+    localStorage.setItem("fg_reactivation_updated", Date.now().toString());
+    triggerToast(
+        "Permintaan Terkirim",
+        "Permintaan aktivasi kembali telah dikirim ke Owner. Harap tunggu persetujuan.",
+        "success"
+    );
+    checkDeactivationBanner(); // Refresh button label
+}
+
 // Listen for real-time deactivation changes from Owner (cross-tab via localStorage)
 window.addEventListener("storage", function (e) {
     if (e.key === "fg_deactivation_updated") {
         checkDeactivationBanner();
         if (isCashierDeactivated()) {
-            triggerToast(
-                "Status Berubah",
-                `Kasir ${loggedInCashierId} telah dinonaktifkan oleh Owner.`,
-                "critical"
-            );
+            triggerToast("Status Berubah", `Kasir ${loggedInCashierId} telah dinonaktifkan oleh Owner.`, "critical");
         } else {
-            triggerToast(
-                "Status Berubah",
-                `Kasir ${loggedInCashierId} kembali aktif oleh Owner.`,
-                "success"
-            );
+            triggerToast("Selamat Datang Kembali!", `Kasir ${loggedInCashierId} kembali aktif. Anda bisa beroperasi normal.`, "success");
         }
     }
 });

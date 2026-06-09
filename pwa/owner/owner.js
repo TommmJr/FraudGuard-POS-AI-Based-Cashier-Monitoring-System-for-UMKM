@@ -750,19 +750,81 @@ function confirmDeactivateCashier() {
         "warning"
     );
     closeDeactivateModal();
-    renderCashiersTable(); // Refresh table to show new status
-}
-
-function reactivateCashier(cashierId) {
-    const list = getDeactivatedCashiers().filter(id => id !== cashierId);
-    saveDeactivatedCashiers(list);
-    triggerToast(
-        "Kasir Diaktifkan Kembali",
-        `${cashierId} kini dapat beroperasi normal kembali.`,
-        "success"
-    );
     renderCashiersTable();
 }
+
+//  REACTIVATION WITH CONFIRMATION 
+let _pendingReactivateCashierId = null;
+
+function reactivateCashier(cashierId) {
+    _pendingReactivateCashierId = cashierId;
+    const hasRequest = getReactivationRequests().includes(cashierId);
+
+    document.getElementById("reactivate-cashier-name").textContent     = cashierId;
+    document.getElementById("reactivate-cashier-name-alt").textContent  = cashierId;
+    document.getElementById("reactivate-request-notice").style.display  = hasRequest ? "flex" : "none";
+    document.getElementById("reactivate-no-request").style.display      = hasRequest ? "none" : "block";
+    document.getElementById("reactivate-modal").style.display = "flex";
+}
+
+function closeReactivateModal() {
+    _pendingReactivateCashierId = null;
+    document.getElementById("reactivate-modal").style.display = "none";
+}
+
+function confirmReactivateCashier() {
+    if (!_pendingReactivateCashierId) return;
+    // Remove from deactivated list
+    const deactivated = getDeactivatedCashiers().filter(id => id !== _pendingReactivateCashierId);
+    saveDeactivatedCashiers(deactivated);
+    // Remove from reactivation requests
+    const requests = getReactivationRequests().filter(id => id !== _pendingReactivateCashierId);
+    localStorage.setItem("fg_reactivation_requests", JSON.stringify(requests));
+    // Notify cashier tabs
+    localStorage.setItem("fg_deactivation_updated", Date.now().toString());
+    triggerToast(
+        "Kasir Diaktifkan Kembali ✓",
+        `${_pendingReactivateCashierId} kini dapat beroperasi normal kembali.`,
+        "success"
+    );
+    closeReactivateModal();
+    renderCashiersTable();
+    updateReactivationBadge();
+}
+
+//  REACTIVATION REQUEST HELPERS 
+function getReactivationRequests() {
+    try { return JSON.parse(localStorage.getItem("fg_reactivation_requests") || "[]"); }
+    catch { return []; }
+}
+
+function updateReactivationBadge() {
+    const requests = getReactivationRequests();
+    const badge = document.getElementById("reactivation-badge");
+    if (!badge) return;
+    if (requests.length > 0) {
+        badge.textContent = requests.length;
+        badge.style.display = "inline-flex";
+    } else {
+        badge.style.display = "none";
+    }
+}
+
+// Listen for reactivation requests from cashier tabs (cross-tab)
+window.addEventListener("storage", function (e) {
+    if (e.key === "fg_reactivation_updated") {
+        updateReactivationBadge();
+        const requests = getReactivationRequests();
+        if (requests.length > 0) {
+            triggerToast(
+                "Permintaan Aktivasi Masuk",
+                `Kasir ${requests[requests.length - 1]} mengajukan permintaan untuk diaktifkan kembali.`,
+                "warning"
+            );
+        }
+        renderCashiersTable(); // Refresh to show pending badge on button
+    }
+});
 
 // Close deactivate modal on overlay click
 document.getElementById("deactivate-modal").addEventListener("click", function (e) {
@@ -779,3 +841,4 @@ setupReportsExporter();
 setupSettingsManager();
 refreshDashboardData();
 startAutoRefresh();
+updateReactivationBadge(); 

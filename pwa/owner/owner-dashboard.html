@@ -1,22 +1,24 @@
 <!DOCTYPE html>
 <html lang="id" data-theme="light">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FraudGuard - Owner Panel</title>
-    
+
     <!-- Shared Style Reset & Fonts -->
     <link rel="stylesheet" href="../shared/common.css">
-    
+
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
     <!-- Owner Styles Override -->
     <link rel="stylesheet" href="owner.css">
 </head>
+
 <body>
 
     <!-- Sidebar Navigation -->
@@ -33,7 +35,11 @@
                 <a href="#fraud"><i class="fa-solid fa-user-shield"></i> Fraud Monitoring</a>
             </li>
             <li data-section="cashiers">
-                <a href="#cashiers"><i class="fa-solid fa-users-gear"></i> Cashier Analytics</a>
+                <a href="#cashiers" style="display:flex; align-items:center; justify-content:space-between;">
+                    <span><i class="fa-solid fa-users-gear"></i> Cashier Analytics</span>
+                    <span id="reactivation-badge"
+                        style="display:none; background:#F59E0B; color:#000; font-size:10px; font-weight:800; padding:2px 7px; border-radius:10px; min-width:18px; justify-content:center;">0</span>
+                </a>
             </li>
             <li data-section="transactions">
                 <a href="#transactions"><i class="fa-solid fa-receipt"></i> Transactions</a>
@@ -49,7 +55,10 @@
             FraudGuard POS v1.0<br>&copy; 2026 AI Cashier Guard
         </div>
         <div style="padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.08);">
-            <a id="owner-logout-btn" href="../index.html" style="display:flex; align-items:center; gap:10px; padding:10px 16px; color:rgba(252,165,165,0.85); text-decoration:none; border-radius:8px; font-size:13.5px; font-weight:600; transition:background 0.2s;" onmouseover="this.style.background='rgba(220,38,38,0.15)'" onmouseout="this.style.background='transparent'">
+            <a id="owner-logout-btn" href="../index.html"
+                style="display:flex; align-items:center; gap:10px; padding:10px 16px; color:rgba(252,165,165,0.85); text-decoration:none; border-radius:8px; font-size:13.5px; font-weight:600; transition:background 0.2s;"
+                onmouseover="this.style.background='rgba(220,38,38,0.15)'"
+                onmouseout="this.style.background='transparent'">
                 <i class="fa-solid fa-right-from-bracket" style="color:#F87171;"></i> Logout
             </a>
         </div>
@@ -57,13 +66,13 @@
 
     <!-- Main Workspace -->
     <main>
-        
+
         <!-- Top Navbar -->
         <nav>
             <div class="nav-left">
                 <div class="nav-title" id="nav-section-title">Owner Monitoring Panel</div>
             </div>
-            
+
             <div class="nav-right">
                 <button class="theme-toggle" id="theme-toggle-btn" title="Toggle Tema">
                     <i class="fa-solid fa-moon"></i>
@@ -101,7 +110,8 @@
                             <h4>Total Revenue</h4>
                             <div class="value" id="kpi-revenue">Rp 0</div>
                         </div>
-                        <div class="kpi-icon" style="color: var(--risk-low);"><i class="fa-solid fa-sack-dollar"></i></div>
+                        <div class="kpi-icon" style="color: var(--risk-low);"><i class="fa-solid fa-sack-dollar"></i>
+                        </div>
                     </div>
 
                     <div class="kpi-card refunds">
@@ -109,7 +119,8 @@
                             <h4>Total Refund</h4>
                             <div class="value" id="kpi-refunds">Rp 0</div>
                         </div>
-                        <div class="kpi-icon" style="color: var(--risk-medium);"><i class="fa-solid fa-arrow-rotate-left"></i></div>
+                        <div class="kpi-icon" style="color: var(--risk-medium);"><i
+                                class="fa-solid fa-arrow-rotate-left"></i></div>
                     </div>
 
                     <div class="kpi-card critical">
@@ -117,7 +128,8 @@
                             <h4>Total Fraud Detected</h4>
                             <div class="value" id="kpi-fraud-cases">0</div>
                         </div>
-                        <div class="kpi-icon" style="color: var(--risk-high);"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="kpi-icon" style="color: var(--risk-high);"><i
+                                class="fa-solid fa-triangle-exclamation"></i></div>
                     </div>
 
                     <div class="kpi-card cashiers-count">
@@ -137,9 +149,12 @@
                                 <i class="fa-solid fa-chart-line"></i> Grafik Aktivitas POS
                             </div>
                             <div class="tabs">
-                                <button class="tab-btn active" id="tab-btn-fraud" onclick="switchTrendChart('fraud')">Tren Fraud</button>
-                                <button class="tab-btn" id="tab-btn-volume" onclick="switchTrendChart('volume')">Volume Transaksi</button>
-                                <button class="tab-btn" id="tab-btn-refund" onclick="switchTrendChart('refund')">Tren Refund</button>
+                                <button class="tab-btn active" id="tab-btn-fraud"
+                                    onclick="switchTrendChart('fraud')">Tren Fraud</button>
+                                <button class="tab-btn" id="tab-btn-volume" onclick="switchTrendChart('volume')">Volume
+                                    Transaksi</button>
+                                <button class="tab-btn" id="tab-btn-refund" onclick="switchTrendChart('refund')">Tren
+                                    Refund</button>
                             </div>
                         </div>
                         <div class="chart-container">
@@ -147,7 +162,7 @@
                         </div>
                     </div>
 
-                    <!-- Risk Level Distribution (Pie/Doughnut Chart) -->
+                    <!-- Risk Level Distribution -->
                     <div class="panel">
                         <div class="panel-header">
                             <div class="panel-title">
@@ -217,19 +232,27 @@
                             <div class="panel-title">
                                 <i class="fa-solid fa-users-gear"></i> Monitoring & Tabel Kasir
                             </div>
-                            <div style="font-size: 11px; color: var(--text-muted);">* Klik baris kasir untuk meninjau log detail AI</div>
+                            <div style="font-size: 11px; color: var(--text-muted);">* Klik baris kasir untuk meninjau
+                                log detail AI</div>
                         </div>
                         <div class="table-wrapper">
                             <table>
                                 <thead>
                                     <tr>
-                                        <th onclick="sortTable('cashier_id')">Cashier ID <i class="fa-solid fa-sort"></i></th>
-                                        <th onclick="sortTable('total_transactions')">Total Transaction <i class="fa-solid fa-sort"></i></th>
-                                        <th onclick="sortTable('total_amount')">Revenue <i class="fa-solid fa-sort"></i></th>
-                                        <th onclick="sortTable('refund_count')">Refund Count <i class="fa-solid fa-sort"></i></th>
-                                        <th onclick="sortTable('refund_ratio_pct')">Refund Ratio <i class="fa-solid fa-sort"></i></th>
-                                        <th onclick="sortTable('fraud_count')">Fraud Count <i class="fa-solid fa-sort"></i></th>
-                                        <th onclick="sortTable('last_transaction')">Last Transaction <i class="fa-solid fa-sort"></i></th>
+                                        <th onclick="sortTable('cashier_id')">Cashier ID <i
+                                                class="fa-solid fa-sort"></i></th>
+                                        <th onclick="sortTable('total_transactions')">Total Transaction <i
+                                                class="fa-solid fa-sort"></i></th>
+                                        <th onclick="sortTable('total_amount')">Revenue <i class="fa-solid fa-sort"></i>
+                                        </th>
+                                        <th onclick="sortTable('refund_count')">Refund Count <i
+                                                class="fa-solid fa-sort"></i></th>
+                                        <th onclick="sortTable('refund_ratio_pct')">Refund Ratio <i
+                                                class="fa-solid fa-sort"></i></th>
+                                        <th onclick="sortTable('fraud_count')">Fraud Count <i
+                                                class="fa-solid fa-sort"></i></th>
+                                        <th onclick="sortTable('last_transaction')">Last Transaction <i
+                                                class="fa-solid fa-sort"></i></th>
                                         <th>Status</th>
                                         <th>Aksi Owner</th>
                                     </tr>
@@ -263,17 +286,20 @@
                             <i class="fa-solid fa-receipt"></i> Log Riwayat Transaksi Bisnis
                         </div>
                     </div>
-                    
+
                     <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 8px;">
-                        <input type="text" id="tx-search-input" placeholder="Cari ID Kasir..." class="form-control" style="max-width: 250px; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 12px; border-radius: 6px; font-size: 13.5px; height: 38px;">
-                        
-                        <select id="tx-type-filter" class="form-control" style="max-width: 160px; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); padding: 0 12px; border-radius: 6px; font-size: 13.5px; height: 38px; line-height: 38px;">
+                        <input type="text" id="tx-search-input" placeholder="Cari ID Kasir..." class="form-control"
+                            style="max-width: 250px; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 12px; border-radius: 6px; font-size: 13.5px; height: 38px;">
+
+                        <select id="tx-type-filter" class="form-control"
+                            style="max-width: 160px; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); padding: 0 12px; border-radius: 6px; font-size: 13.5px; height: 38px; line-height: 38px;">
                             <option value="ALL">Semua Tipe</option>
                             <option value="SALE">SALE</option>
                             <option value="REFUND">REFUND</option>
                         </select>
-                        
-                        <select id="tx-risk-filter" class="form-control" style="max-width: 160px; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); padding: 0 12px; border-radius: 6px; font-size: 13.5px; height: 38px; line-height: 38px;">
+
+                        <select id="tx-risk-filter" class="form-control"
+                            style="max-width: 160px; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); padding: 0 12px; border-radius: 6px; font-size: 13.5px; height: 38px; line-height: 38px;">
                             <option value="ALL">Semua Risiko</option>
                             <option value="LOW">LOW</option>
                             <option value="MEDIUM">MEDIUM</option>
@@ -311,29 +337,47 @@
                             <i class="fa-solid fa-file-invoice"></i> Laporan & Intelijen Bisnis
                         </div>
                     </div>
-                    <div style="font-size: 14px; color: var(--text-main); display: flex; flex-direction: column; gap: 16px;">
-                        <p>Analisis kinerja operasional kasir serta cetak ringkasan audit fraud untuk periode penagihan saat ini.</p>
-                        
-                        <div class="summary-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
-                            <div class="card" style="padding: 20px; border: 1px solid var(--border-color); border-radius: 12px; background-color: var(--bg-card); display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow-sm);">
-                                <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Rata-rata Transaksi</span>
-                                <div class="value" id="report-avg-basket" style="font-size: 24px; font-weight: 800; color: var(--text-main);">Rp 0</div>
+                    <div
+                        style="font-size: 14px; color: var(--text-main); display: flex; flex-direction: column; gap: 16px;">
+                        <p>Analisis kinerja operasional kasir serta cetak ringkasan audit fraud untuk periode penagihan
+                            saat ini.</p>
+
+                        <div class="summary-grid"
+                            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                            <div class="card"
+                                style="padding: 20px; border: 1px solid var(--border-color); border-radius: 12px; background-color: var(--bg-card); display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow-sm);">
+                                <span
+                                    style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Rata-rata
+                                    Transaksi</span>
+                                <div class="value" id="report-avg-basket"
+                                    style="font-size: 24px; font-weight: 800; color: var(--text-main);">Rp 0</div>
                             </div>
-                            <div class="card" style="padding: 20px; border: 1px solid var(--border-color); border-radius: 12px; background-color: var(--bg-card); display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow-sm);">
-                                <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Jam Puncak Risiko Fraud</span>
-                                <div class="value" style="font-size: 24px; font-weight: 800; color: var(--risk-high);">13:00 - 14:00</div>
+                            <div class="card"
+                                style="padding: 20px; border: 1px solid var(--border-color); border-radius: 12px; background-color: var(--bg-card); display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow-sm);">
+                                <span
+                                    style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Jam
+                                    Puncak Risiko Fraud</span>
+                                <div class="value" style="font-size: 24px; font-weight: 800; color: var(--risk-high);">
+                                    13:00 - 14:00</div>
                             </div>
-                            <div class="card" style="padding: 20px; border: 1px solid var(--border-color); border-radius: 12px; background-color: var(--bg-card); display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow-sm);">
-                                <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Kasir Berisiko Tertinggi</span>
-                                <div class="value" id="report-risk-cashier" style="font-size: 24px; font-weight: 800; color: var(--risk-critical);">CSH-005</div>
+                            <div class="card"
+                                style="padding: 20px; border: 1px solid var(--border-color); border-radius: 12px; background-color: var(--bg-card); display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow-sm);">
+                                <span
+                                    style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Kasir
+                                    Berisiko Tertinggi</span>
+                                <div class="value" id="report-risk-cashier"
+                                    style="font-size: 24px; font-weight: 800; color: var(--risk-critical);">CSH-005
+                                </div>
                             </div>
                         </div>
-                        
+
                         <div style="display: flex; gap: 12px; margin-top: 10px;">
-                            <button id="btn-export-pdf" class="btn-submit" style="max-width: 250px; background-color: var(--primary); border: none; color: white; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; height: 44px; margin-top: 0;">
+                            <button id="btn-export-pdf" class="btn-submit"
+                                style="max-width: 250px; background-color: var(--primary); border: none; color: white; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; height: 44px; margin-top: 0;">
                                 <i class="fa-solid fa-file-pdf"></i> Unduh Laporan PDF
                             </button>
-                            <button id="btn-export-csv" class="btn-submit" style="max-width: 250px; background-color: transparent; border: 1px solid var(--border-color); color: var(--text-main); padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; height: 44px; margin-top: 0;">
+                            <button id="btn-export-csv" class="btn-submit"
+                                style="max-width: 250px; background-color: transparent; border: 1px solid var(--border-color); color: var(--text-main); padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; height: 44px; margin-top: 0;">
                                 <i class="fa-solid fa-file-csv"></i> Unduh Lembar Kerja CSV
                             </button>
                         </div>
@@ -351,22 +395,33 @@
                     </div>
                     <form id="owner-settings-form" style="display: flex; flex-direction: column; gap: 16px;">
                         <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
-                            <label style="font-size: 13px; font-weight: 600; color: var(--text-main);">URL API Endpoint</label>
-                            <input type="url" id="setting-api-url" class="form-control" style="background-color: var(--bg-body); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 12px; border-radius: 8px; font-size: 13.5px;" required>
+                            <label style="font-size: 13px; font-weight: 600; color: var(--text-main);">URL API
+                                Endpoint</label>
+                            <input type="url" id="setting-api-url" class="form-control"
+                                style="background-color: var(--bg-body); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 12px; border-radius: 8px; font-size: 13.5px;"
+                                required>
                         </div>
                         <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
-                            <label style="font-size: 13px; font-weight: 600; color: var(--text-main);">Sensitivitas Peringatan AI (Skor Ambang Batas)</label>
+                            <label style="font-size: 13px; font-weight: 600; color: var(--text-main);">Sensitivitas
+                                Peringatan AI (Skor Ambang Batas)</label>
                             <div style="display: flex; align-items: center; gap: 12px;">
-                                <input type="range" id="setting-fraud-threshold" min="0.1" max="0.9" step="0.05" style="flex-grow: 1; accent-color: var(--primary);">
-                                <span id="setting-threshold-value" style="font-weight: 700; width: 40px; text-align: right; color: var(--text-main);">0.75</span>
+                                <input type="range" id="setting-fraud-threshold" min="0.1" max="0.9" step="0.05"
+                                    style="flex-grow: 1; accent-color: var(--primary);">
+                                <span id="setting-threshold-value"
+                                    style="font-weight: 700; width: 40px; text-align: right; color: var(--text-main);">0.75</span>
                             </div>
-                            <span style="font-size: 11px; color: var(--text-muted);">Setiap transaksi dengan skor di atas ambang ini akan ditandai HIGH/CRITICAL secara otomatis.</span>
+                            <span style="font-size: 11px; color: var(--text-muted);">Setiap transaksi dengan skor di
+                                atas ambang ini akan ditandai HIGH/CRITICAL secara otomatis.</span>
                         </div>
                         <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
-                            <label style="font-size: 13px; font-weight: 600; color: var(--text-main);">Interval Sinkronisasi Otomatis (Detik)</label>
-                            <input type="number" id="setting-refresh-interval" class="form-control" style="background-color: var(--bg-body); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 12px; border-radius: 8px; font-size: 13.5px;" min="5" max="300" required>
+                            <label style="font-size: 13px; font-weight: 600; color: var(--text-main);">Interval
+                                Sinkronisasi Otomatis (Detik)</label>
+                            <input type="number" id="setting-refresh-interval" class="form-control"
+                                style="background-color: var(--bg-body); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 12px; border-radius: 8px; font-size: 13.5px;"
+                                min="5" max="300" required>
                         </div>
-                        <button type="submit" class="btn-submit" style="background-color: var(--primary); border: none; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; align-self: flex-start; height: 44px; margin-top: 8px;">
+                        <button type="submit" class="btn-submit"
+                            style="background-color: var(--primary); border: none; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; align-self: flex-start; height: 44px; margin-top: 8px;">
                             <i class="fa-solid fa-floppy-disk"></i> Simpan Pengaturan
                         </button>
                     </form>
@@ -426,19 +481,27 @@
     </div>
 
     <!-- Cashier Deactivation Confirmation Modal -->
-    <div class="modal-overlay" id="deactivate-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:200; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
-        <div class="modal" style="max-width:480px; width:90%; background:var(--bg-card); border-radius:16px; padding:32px; border:1px solid var(--border-color); box-shadow:0 25px 50px rgba(0,0,0,0.4); position:relative;">
+    <div class="modal-overlay" id="deactivate-modal"
+        style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:200; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+        <div class="modal"
+            style="max-width:480px; width:90%; background:var(--bg-card); border-radius:16px; padding:32px; border:1px solid var(--border-color); box-shadow:0 25px 50px rgba(0,0,0,0.4); position:relative;">
             <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px;">
-                <div style="width:52px; height:52px; border-radius:50%; background:rgba(220,38,38,0.12); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <div
+                    style="width:52px; height:52px; border-radius:50%; background:rgba(220,38,38,0.12); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                     <i class="fa-solid fa-user-slash" style="font-size:22px; color:#EF4444;"></i>
                 </div>
                 <div>
-                    <h3 style="font-size:17px; font-weight:800; color:var(--text-main); margin:0 0 4px;">Nonaktifkan Kasir?</h3>
-                    <p style="font-size:13px; color:var(--text-muted); margin:0;">Tindakan ini memerlukan konfirmasi Owner</p>
+                    <h3 style="font-size:17px; font-weight:800; color:var(--text-main); margin:0 0 4px;">Nonaktifkan
+                        Kasir?</h3>
+                    <p style="font-size:13px; color:var(--text-muted); margin:0;">Tindakan ini memerlukan konfirmasi
+                        Owner</p>
                 </div>
             </div>
-            <div style="background:rgba(220,38,38,0.06); border:1px solid rgba(220,38,38,0.2); border-radius:10px; padding:16px; margin-bottom:20px;">
-                <p style="font-size:13.5px; color:var(--text-main); margin:0 0 8px;">Kasir <strong id="deactivate-cashier-name" style="color:#EF4444;">CSH-XXX</strong> akan dinonaktifkan sementara.</p>
+            <div
+                style="background:rgba(220,38,38,0.06); border:1px solid rgba(220,38,38,0.2); border-radius:10px; padding:16px; margin-bottom:20px;">
+                <p style="font-size:13.5px; color:var(--text-main); margin:0 0 8px;">Kasir <strong
+                        id="deactivate-cashier-name" style="color:#EF4444;">CSH-XXX</strong> akan dinonaktifkan
+                    sementara.</p>
                 <ul style="font-size:12.5px; color:var(--text-muted); margin:0; padding-left:18px; line-height:1.8;">
                     <li>Tidak bisa melakukan transaksi <strong>REFUND</strong></li>
                     <li>Tidak bisa menyimpan transaksi baru</li>
@@ -447,15 +510,61 @@
                 </ul>
             </div>
             <div style="margin-bottom:20px;">
-                <label style="font-size:13px; font-weight:600; color:var(--text-main); display:block; margin-bottom:8px;">
-                    <i class="fa-solid fa-lock" style="color:#EF4444;"></i> Ketik <code style="background:rgba(220,38,38,0.1); padding:2px 6px; border-radius:4px; color:#EF4444;">NONAKTIFKAN</code> untuk konfirmasi:
+                <label
+                    style="font-size:13px; font-weight:600; color:var(--text-main); display:block; margin-bottom:8px;">
+                    <i class="fa-solid fa-lock" style="color:#EF4444;"></i> Ketik <code
+                        style="background:rgba(220,38,38,0.1); padding:2px 6px; border-radius:4px; color:#EF4444;">NONAKTIFKAN</code>
+                    untuk konfirmasi:
                 </label>
-                <input type="text" id="deactivate-confirm-input" placeholder="Ketik NONAKTIFKAN" style="width:100%; height:42px; border:1.5px solid var(--border-color); border-radius:8px; padding:0 14px; font-size:14px; background:var(--bg-body); color:var(--text-main); box-sizing:border-box; outline:none;" oninput="checkDeactivateConfirm()">
+                <input type="text" id="deactivate-confirm-input" placeholder="Ketik NONAKTIFKAN"
+                    style="width:100%; height:42px; border:1.5px solid var(--border-color); border-radius:8px; padding:0 14px; font-size:14px; background:var(--bg-body); color:var(--text-main); box-sizing:border-box; outline:none;"
+                    oninput="checkDeactivateConfirm()">
             </div>
             <div style="display:flex; gap:10px; justify-content:flex-end;">
-                <button onclick="closeDeactivateModal()" style="padding:10px 20px; border:1px solid var(--border-color); border-radius:8px; background:transparent; color:var(--text-main); font-weight:600; cursor:pointer; font-size:13.5px;">Batal</button>
-                <button id="deactivate-confirm-btn" onclick="confirmDeactivateCashier()" disabled style="padding:10px 20px; border:none; border-radius:8px; background:#DC2626; color:white; font-weight:700; cursor:pointer; font-size:13.5px; opacity:0.4; transition:opacity 0.2s;">
+                <button onclick="closeDeactivateModal()"
+                    style="padding:10px 20px; border:1px solid var(--border-color); border-radius:8px; background:transparent; color:var(--text-main); font-weight:600; cursor:pointer; font-size:13.5px;">Batal</button>
+                <button id="deactivate-confirm-btn" onclick="confirmDeactivateCashier()" disabled
+                    style="padding:10px 20px; border:none; border-radius:8px; background:#DC2626; color:white; font-weight:700; cursor:pointer; font-size:13.5px; opacity:0.4; transition:opacity 0.2s;">
                     <i class="fa-solid fa-user-slash"></i> Nonaktifkan Sekarang
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cashier Reactivation Confirmation Modal -->
+    <div class="modal-overlay" id="reactivate-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:200; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+        <div class="modal" style="max-width:460px; width:90%; background:var(--bg-card); border-radius:16px; padding:32px; border:1px solid var(--border-color); box-shadow:0 25px 50px rgba(0,0,0,0.4);">
+            <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px;">
+                <div style="width:52px; height:52px; border-radius:50%; background:rgba(16,185,129,0.12); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="fa-solid fa-user-check" style="font-size:22px; color:#10B981;"></i>
+                </div>
+                <div>
+                    <h3 style="font-size:17px; font-weight:800; color:var(--text-main); margin:0 0 4px;">Aktifkan Kembali Kasir?</h3>
+                    <p style="font-size:13px; color:var(--text-muted); margin:0;">Konfirmasi Owner diperlukan sebelum kasir dapat beroperasi</p>
+                </div>
+            </div>
+
+            <!-- Pending request notice (shown only if cashier submitted a request) -->
+            <div id="reactivate-request-notice" style="display:none; align-items:center; gap:10px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:10px; padding:12px 16px; margin-bottom:16px;">
+                <i class="fa-solid fa-bell" style="color:#F59E0B; font-size:16px;"></i>
+                <p style="font-size:13px; color:var(--text-main); margin:0;">
+                    Kasir <strong id="reactivate-cashier-name" style="color:#10B981;">CSH-XXX</strong> telah mengajukan permintaan untuk diaktifkan kembali.
+                </p>
+            </div>
+            <!-- Fallback name display when no request -->
+            <div id="reactivate-no-request" style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.2); border-radius:10px; padding:16px; margin-bottom:16px;">
+                <p style="font-size:13.5px; color:var(--text-main); margin:0 0 8px;">Kasir <strong id="reactivate-cashier-name-alt" style="color:#10B981;"></strong> akan diaktifkan kembali oleh Owner.</p>
+                <ul style="font-size:12.5px; color:var(--text-muted); margin:0; padding-left:18px; line-height:1.8;">
+                    <li>Kasir dapat kembali menyimpan transaksi baru</li>
+                    <li>Kasir dapat kembali melakukan <strong>REFUND</strong></li>
+                    <li>Pemantauan AI tetap aktif untuk kasir ini</li>
+                </ul>
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button onclick="closeReactivateModal()" style="padding:10px 20px; border:1px solid var(--border-color); border-radius:8px; background:transparent; color:var(--text-main); font-weight:600; cursor:pointer; font-size:13.5px;">Batal</button>
+                <button onclick="confirmReactivateCashier()" style="padding:10px 20px; border:none; border-radius:8px; background:#059669; color:white; font-weight:700; cursor:pointer; font-size:13.5px; display:inline-flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-user-check"></i> Ya, Aktifkan Kembali
                 </button>
             </div>
         </div>
@@ -463,9 +572,10 @@
 
     <!-- Shared JS utilities -->
     <script src="../shared/common.js"></script>
-    
+
     <!-- Owner Logic -->
     <script src="owner.js"></script>
 
 </body>
+
 </html>
