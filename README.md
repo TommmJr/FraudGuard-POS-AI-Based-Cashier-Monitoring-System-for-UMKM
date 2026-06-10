@@ -135,7 +135,6 @@ FraudGuard menyediakan **Progressive Web App** sebagai antarmuka kasir yang bers
 ### Fitur PWA
 - **Offline-First** — Transaksi disimpan di IndexedDB lokal, lalu disinkronkan ke backend saat online
 - **Service Worker** — Caching aset statis (HTML, CSS, JS) untuk akses tanpa internet
-- **Installable** — Bisa di-install ke Home Screen (Android/iOS) atau Desktop (Chrome/Edge)
 - **Auto-Sync** — Sinkronisasi otomatis setiap 60 detik & saat koneksi kembali online
 - **Fraud Scoring Terintegrasi** — Setelah sync, backend otomatis men-score transaksi dan menampilkan tingkat risiko
 
@@ -182,19 +181,6 @@ cd pwa
 python -m http.server 8080
 # Buka http://localhost:8080 di browser
 ```
-
-### Mengetes PWA
-
-1. **Buka Chrome DevTools** → Tab **Application**:
-   - **Manifest** — Pastikan terdeteksi dan ikon tampil
-   - **Service Workers** — Pastikan status "Activated and running"
-   - **Cache Storage** — Pastikan cache `fraudguard-v1` berisi aset
-2. **Tes Offline** — Centang "Offline" di tab Network, lalu reload halaman
-3. **Install PWA** — Klik ikon install (⊕) di address bar Chrome, atau menu ⋮ → "Install FraudGuard Point of Sale"
-4. **Tes Input Transaksi** — Isi form & klik "Simpan Transaksi", data masuk ke IndexedDB
-5. **Tes Sinkronisasi** — Pastikan API berjalan, transaksi akan otomatis tersinkron & di-score
-
----
 
 ## Struktur Project
 
@@ -318,7 +304,7 @@ Model terbaik akan tersimpan otomatis ke `models/best_supervised.pkl`.
    di dunia nyata**. Validasi nyata butuh kasus fraud terkonfirmasi dari pemilik UMKM.
 
 2. **Model hybrid 1 supervised.**
-   Hanya 1 model supervised yang dipakai (dipilih otomatis antara RF vs XGBoost).
+   Hanya 1 model supervised yang dipakai (dipilih otomatis antara RF vs XGBoost) dan digabungkan ke dalam model unsupervised (Isolation Forest).
    Tidak ada ensemble dari beberapa model.
 
 3. **"Anomali ≠ fraud".**
@@ -328,5 +314,10 @@ Model terbaik akan tersimpan otomatis ke `models/best_supervised.pkl`.
    - Model perlu monitoring performa di production
    - Retraining berkala dengan data baru
    - Feedback loop: fraud terlewat → retrain
+
+5. **Keterbatasan Deteksi Fisik (No-Ring Fraud)**
+   - AI beroperasi pada jejak digital (*Digital Footprint*). Jika kasir melakukan pencurian fisik murni tanpa menyentuh layar POS (menerima uang namun tidak mencetak struk), sistem AI buta terhadap kejadian tersebut.
+   - **Solusi SOP Saat Ini**: Wajib dipadukan dengan kebijakan operasional "Belanja Gratis Jika Tidak Menerima Struk" untuk memaksa kasir menginput data, serta *Stock Opname* berkala untuk mendeteksi selisih persediaan.
+   - **Future Work**: Potensi integrasi dengan IoT (sensor *Cash Drawer*) dan *Computer Vision* (CCTV AI) yang dapat memvalidasi apakah laci uang terbuka secara sinkron dengan log transaksi dari mesin POS.
 
 ---
