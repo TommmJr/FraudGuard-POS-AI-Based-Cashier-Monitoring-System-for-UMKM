@@ -280,11 +280,11 @@ function renderAIInsights() {
 
     const highFraudCashier = [...apiCashiers].sort((a, b) => b.fraud_count - a.fraud_count)[0];
     if (highFraudCashier && highFraudCashier.fraud_count > 5) {
-        insights.push(`Kasir <strong>${highFraudCashier.cashier_id}</strong> memiliki indikasi aktivitas refund abnormal dengan <strong>${highFraudCashier.fraud_count} kasus terdeteksi AI</strong>.`);
+        insights.push(`Kasir <strong>${highFraudCashier.cashier_id}</strong> memiliki indikasi aktivitas transaksi anomali dengan <strong>${highFraudCashier.fraud_count} kasus terdeteksi AI</strong>.`);
     }
 
     if (apiDashboard.summary.total_fraud_labeled > 10) {
-        insights.push(`Risiko fraud terdeteksi mengalami kenaikan dalam 7 hari terakhir. Perketat otorisasi pada transaksi bertipe refund.`);
+        insights.push(`Risiko fraud terdeteksi mengalami kenaikan dalam 7 hari terakhir. Perketat otorisasi pada transaksi berisiko tinggi (termasuk SALE larut malam).`);
     } else {
         insights.push(`Grafik risiko fraud harian terpantau stabil. Pastikan SOP kasir tetap dijalankan secara disiplin.`);
     }

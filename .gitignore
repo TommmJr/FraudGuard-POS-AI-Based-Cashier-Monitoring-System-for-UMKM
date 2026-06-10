@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 *.pkl
 *.db
+*.csv
+ml_pipeline/data/
+ml_pipeline/models/

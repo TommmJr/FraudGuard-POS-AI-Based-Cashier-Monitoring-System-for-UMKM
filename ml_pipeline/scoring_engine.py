@@ -1,122 +1,226 @@
+"""
+FraudGuard — scoring_engine.py
+
+Modul scoring untuk API. Menerima transaksi mentah, hitung fitur perilaku,
+lalu prediksi severity fraud menggunakan model hybrid (IF + supervised).
+
+Model hybrid:
+  Lapis 1: Isolation Forest → anomaly score (fitur tambahan)
+  Lapis 2: 1 model supervised terbaik → prediksi severity (LOW/MEDIUM/HIGH/CRITICAL)
+
+File ini satu-satunya .py di ml_pipeline karena Flask API
+perlu meng-import-nya sebagai modul Python.
+"""
+
 import os
 import sys
+import json
 import joblib
 import pandas as pd
+import numpy as np
 
-# Pastikan path ml_pipeline ada di sys.path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-if BASE_DIR not in sys.path:
-    sys.path.insert(0, BASE_DIR)
 
-from pola_b_features import build_pola_b_matrix
+# Path ke model dan artifacts
+IF_MODEL_PATH      = os.path.join(BASE_DIR, "models", "isolation_forest.pkl")
+BEST_MODEL_PATH    = os.path.join(BASE_DIR, "models", "best_supervised.pkl")
+SCALER_PATH        = os.path.join(BASE_DIR, "models", "scaler.pkl")
+FEAT_COL_PATH      = os.path.join(BASE_DIR, "models", "feature_columns.json")
+META_PATH          = os.path.join(BASE_DIR, "models", "model_metadata.json")
 
-IF_MODEL_PATH       = os.path.join(BASE_DIR, "models", "isolation_forest.pkl")
-SUPERVISED_RF_PATH  = os.path.join(BASE_DIR, "models", "supervised_rf.pkl")
-SUPERVISED_XGB_PATH = os.path.join(BASE_DIR, "models", "supervised_xgb.pkl")
+# Load feature metadata saat import
+_feat_meta = {}
+if os.path.exists(FEAT_COL_PATH):
+    with open(FEAT_COL_PATH) as f:
+        _feat_meta = json.load(f)
 
-# Default model: Random Forest (bisa diubah ke "xgboost")
-DEFAULT_MODEL_TYPE = "rf"
+FEATURE_COLS = _feat_meta.get("feature_columns", [
+    "hour_of_day",
+    "is_refund",
+    "time_gap_seconds",
+    "txn_freq_daily",
+    "refund_count_daily",
+    "refund_ratio_daily",
+    "amount_zscore_cashier",
+    "amount_rolling_mean_5",
+    "amount_deviation_from_mean",
+    "is_late_night",
+    "txn_freq_zscore_cashier",
+])
 
-# Ambang risiko berdasarkan PELUANG fraud (0..100), bukan peringkat relatif.
-RISK_LEVELS = {
-    "CRITICAL": (75, 100),
-    "HIGH":     (50, 74),
-    "MEDIUM":   (25, 49),
-    "LOW":      (0,  24),
-}
+SEVERITY_LABELS = _feat_meta.get("severity_labels", ["LOW", "MEDIUM", "HIGH", "CRITICAL"])
+SEVERITY_MAP = _feat_meta.get("severity_map", {"LOW": 0, "MEDIUM": 1, "HIGH": 2, "CRITICAL": 3})
+
+# Reverse map: code -> label
+CODE_TO_LABEL = {v: k for k, v in SEVERITY_MAP.items()}
 
 
-def get_risk_label(score: float) -> str:
-    """Ubah fraud_score menjadi risk level label."""
-    for label, (lo, hi) in RISK_LEVELS.items():
-        if lo <= score <= hi:
-            return label
-    return "LOW"
+def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Hitung fitur perilaku per kasir dari data transaksi mentah."""
+    df = df.copy()
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    df["date"] = df["timestamp"].dt.date
+    df = df.sort_values(["cashier_id", "timestamp"])
+
+    # 1. Jam transaksi
+    df["hour_of_day"] = df["timestamp"].dt.hour
+
+    # 2. Penanda refund
+    df["is_refund"] = (df["transaction_type"] == "REFUND").astype(int)
+
+    # 3. Jeda antar transaksi per kasir
+    df["time_gap_seconds"] = (
+        df.groupby("cashier_id")["timestamp"].diff().dt.total_seconds().fillna(0)
+    )
+
+    # 4. Frekuensi transaksi harian per kasir
+    df["txn_freq_daily"] = (
+        df.groupby(["cashier_id", "date"])["id"].transform("count")
+    )
+
+    # 5. Jumlah refund harian per kasir
+    df["refund_count_daily"] = (
+        df.groupby(["cashier_id", "date"])["is_refund"].transform("sum")
+    )
+
+    # 6. Rasio refund harian
+    df["refund_ratio_daily"] = df["refund_count_daily"] / df["txn_freq_daily"]
+
+    # 7. Z-score nominal relatif per kasir
+    g_mean = df.groupby("cashier_id")["amount"].transform("mean")
+    g_std  = df.groupby("cashier_id")["amount"].transform("std").replace(0, 1)
+    df["amount_zscore_cashier"] = (df["amount"] - g_mean) / g_std
+
+    # 8. Rolling mean 5 transaksi terakhir per kasir
+    df["amount_rolling_mean_5"] = (
+        df.groupby("cashier_id")["amount"]
+          .transform(lambda x: x.rolling(5, min_periods=1).mean())
+    )
+
+    # 9. Deviasi dari rolling mean
+    df["amount_deviation_from_mean"] = df["amount"] - df["amount_rolling_mean_5"]
+
+    # 10. Fitur larut malam
+    df["is_late_night"] = ((df["hour_of_day"] >= 23) | (df["hour_of_day"] <= 4)).astype(int)
+
+    # 11. Z-score dari frekuensi harian per kasir
+    g_freq_mean = df.groupby("cashier_id")["txn_freq_daily"].transform("mean")
+    g_freq_std  = df.groupby("cashier_id")["txn_freq_daily"].transform("std").replace(0, 1)
+    df["txn_freq_zscore_cashier"] = (df["txn_freq_daily"] - g_freq_mean) / g_freq_std
+
+    return df
+
+
+def get_feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
+    """Ambil hanya kolom fitur numerik (tanpa cashier_id, tanpa label)."""
+    return df[FEATURE_COLS].fillna(0)
 
 
 def score_transactions(
     df: pd.DataFrame,
-    model_type: str = None,
     df_context: pd.DataFrame = None,
 ) -> pd.DataFrame:
     """
-    Beri fraud_score (0..100) + risk_level untuk tiap transaksi.
+    Beri risk_level (LOW/MEDIUM/HIGH/CRITICAL) untuk tiap transaksi
+    menggunakan model hybrid: IF (anomaly score) + supervised (multi-class).
 
     Args:
         df          : DataFrame transaksi yang ingin di-skor.
                       Kolom wajib: id, cashier_id, timestamp,
                                    transaction_type, amount
-        model_type  : "rf" (Random Forest, default) atau "xgboost"
         df_context  : DataFrame histori kasir dari DB sebagai konteks.
-                      Jika diisi, fitur perilaku (z-score, rolling mean,
-                      refund ratio, dll.) dihitung dari gabungan histori
-                      + transaksi baru sehingga hasilnya jauh lebih akurat.
-                      Jika None → perilaku lama (backwards compatible untuk
-                      notebook yang tidak memerlukan konteks DB).
+                      Jika diisi, fitur perilaku dihitung dari gabungan
+                      histori + transaksi baru (lebih akurat).
+                      Jika None, hitung dari df saja.
 
     Returns:
         DataFrame df dengan kolom tambahan: fraud_score, risk_level, model_used
     """
-    if model_type is None:
-        model_type = DEFAULT_MODEL_TYPE
-
-    if model_type not in ["rf", "xgboost"]:
-        raise ValueError(
-            f"model_type harus 'rf' atau 'xgboost', bukan '{model_type}'"
-        )
-
-    #  Muat model (sekali per panggilan) 
+    # Load models
     if_model = joblib.load(IF_MODEL_PATH)
-    clf      = joblib.load(
-        SUPERVISED_XGB_PATH if model_type == "xgboost" else SUPERVISED_RF_PATH
-    )
+    clf      = joblib.load(BEST_MODEL_PATH)
+    scaler   = joblib.load(SCALER_PATH) if os.path.exists(SCALER_PATH) else None
 
-    #  Pilih jalur: dengan konteks historis atau tanpa 
+    # Load model metadata untuk info nama model
+    model_name = "hybrid"
+    if os.path.exists(META_PATH):
+        with open(META_PATH) as f:
+            model_name = json.load(f).get("model_type", "hybrid")
+
+    # Pilih jalur: dengan konteks historis atau tanpa
     if df_context is not None and not df_context.empty:
-
-        # JALUR KONTEKS (dipakai oleh API /score):
+        # Gabungkan konteks + transaksi baru
         df_new = df.copy()
         df_new["_is_new"] = True
 
         df_ctx = df_context.copy()
         df_ctx["_is_new"] = False
 
-        # Pastikan kolom timestamp bertipe datetime di kedua sisi
         df_new["timestamp"] = pd.to_datetime(df_new["timestamp"])
         df_ctx["timestamp"] = pd.to_datetime(df_ctx["timestamp"])
 
-        # Gabungkan konteks + baru, urutkan per kasir dan waktu
         combined = pd.concat([df_ctx, df_new], ignore_index=True)
         combined = combined.sort_values(["cashier_id", "timestamp"]).reset_index(drop=True)
 
         # Hitung fitur pada data gabungan
-        X_full = build_pola_b_matrix(combined, if_model=if_model)
+        feat = engineer_features(combined)
+        X_base = get_feature_matrix(feat)
 
-        # Ambil baris yang merupakan transaksi baru
-        new_mask   = combined["_is_new"].values.astype(bool)
-        X_new      = X_full[new_mask].reset_index(drop=True)
-        df_out     = combined[new_mask].drop(columns=["_is_new"]).reset_index(drop=True)
+        # Scale fitur
+        if scaler is not None:
+            X_scaled = pd.DataFrame(
+                scaler.transform(X_base), columns=FEATURE_COLS, index=X_base.index
+            )
+        else:
+            X_scaled = X_base
+
+        # Hitung IF anomaly score
+        X_scaled["if_anomaly_score"] = -if_model.decision_function(X_scaled[FEATURE_COLS])
+
+        # Ambil baris transaksi baru saja
+        new_mask = combined["_is_new"].values.astype(bool)
+        X_new = X_scaled[new_mask].reset_index(drop=True)
+        df_out = combined[new_mask].drop(columns=["_is_new"]).reset_index(drop=True)
 
     else:
-        # JALUR TANPA KONTEKS (perilaku lama  dipakai notebook):
-        X_new  = build_pola_b_matrix(df, if_model=if_model)
+        # Tanpa konteks — hitung fitur dari df saja
+        feat = engineer_features(df)
+        X_base = get_feature_matrix(feat)
+
+        if scaler is not None:
+            X_scaled = pd.DataFrame(
+                scaler.transform(X_base), columns=FEATURE_COLS, index=X_base.index
+            )
+        else:
+            X_scaled = X_base
+
+        X_scaled["if_anomaly_score"] = -if_model.decision_function(X_scaled[FEATURE_COLS])
+        X_new = X_scaled
         df_out = df.copy()
 
-    #  Prediksi & format output 
-    proba = clf.predict_proba(X_new)[:, 1]          # peluang fraud 0..1
-    df_out["fraud_score"] = (proba * 100).round(2)
-    df_out["risk_level"]  = [get_risk_label(s) for s in df_out["fraud_score"]]
-    df_out["model_used"]  = model_type
+    # Prediksi severity class
+    y_pred = clf.predict(X_new)
+    y_proba = clf.predict_proba(X_new)
+
+    # Ambil probabilitas tertinggi sebagai confidence score (0-100)
+    max_proba = np.max(y_proba, axis=1)
+
+    # Map kode prediksi ke label severity
+    df_out["risk_level"]  = [CODE_TO_LABEL.get(int(p), "LOW") for p in y_pred]
+    df_out["fraud_score"] = (max_proba * 100).round(2)
+    df_out["model_used"]  = model_name
+
     return df_out
 
 
 def flag_for_review(df_scored: pd.DataFrame) -> dict:
     """
-    PENYESUAIAN 3: hasilkan DAFTAR TINJAUAN, bukan blokir otomatis.
+    Hasilkan daftar tinjauan, bukan blokir otomatis.
 
-      CRITICAL → minta otorisasi pemilik/supervisor sebelum lanjut
-      HIGH     → kirim notifikasi untuk ditinjau
-      (sistem tidak memvonis; ia menandai untuk diperiksa manusia)
+      CRITICAL -> minta otorisasi pemilik/supervisor
+      HIGH     -> kirim notifikasi untuk ditinjau
+
+    Sistem tidak memvonis — ia menandai untuk diperiksa manusia.
 
     Args:
         df_scored: Output dari score_transactions()
@@ -131,12 +235,12 @@ def flag_for_review(df_scored: pd.DataFrame) -> dict:
         if row["risk_level"] == "CRITICAL":
             action  = "REQUEST_AUTHORIZATION"
             message = (
-                "Refund berisiko tinggi. Perlu tinjauan & otorisasi "
+                "Transaksi berisiko tinggi. Perlu tinjauan & otorisasi "
                 "pemilik/supervisor sebelum diproses."
             )
         else:
             action  = "NOTIFY_FOR_REVIEW"
-            message = "Refund perlu ditinjau pemilik/supervisor."
+            message = "Transaksi perlu ditinjau pemilik/supervisor."
 
         flags.append({
             "transaction_id": row["id"],

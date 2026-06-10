@@ -1,61 +1,77 @@
-# FraudGuard — Deteksi Penyalahgunaan Refund Kasir UMKM (Pola B)
+# FraudGuard — Deteksi Aktivitas Transaksi Anomali Kasir UMKM
 
-Sistem deteksi penyalahgunaan **refund** kasir untuk UMKM, dibangun dengan
-arsitektur berlapis **Pola B**: skor anomali *Isolation Forest* (unsupervised)
-dipakai sebagai salah satu fitur untuk model *Random Forest + XGBoost* (supervised) yang
-membuat keputusan akhir.
+Sistem deteksi kecurangan dan anomali **transaksi (Refund & Sale)** kasir untuk UMKM, dibangun dengan
+arsitektur **hybrid dua lapis**: skor anomali *Isolation Forest* (unsupervised)
+dipakai sebagai fitur tambahan untuk **satu model supervised terbaik** (Random Forest
+atau XGBoost — dipilih otomatis berdasarkan F1-Score).
 
-> **Cakupan saat ini: REFUND saja.** VOID & DISCOUNT belum
+> **Cakupan saat ini: REFUND dan SALE anomali (Profil D).** VOID & DISCOUNT belum
 > dibuat datanya. Jangan mengklaim mendeteksi keduanya sampai datanya ada.
 
 
 ## Alur Singkat
 Catat perilaku refund tiap kasir → ajari model mengenali yang wajar →
-beri skor risiko → **tandai untuk ditinjau manusia** (bukan memvonis) →
-ukur akurasi dengan kunci jawaban (`is_fraud`).
+beri **severity level** (LOW/MEDIUM/HIGH/CRITICAL) → **tandai untuk ditinjau manusia**
+(bukan memvonis) → ukur akurasi dengan kunci jawaban (`fraud_severity`).
 
 ## Arsitektur & Pipeline
 
-### Arsitektur Pola B (Dua Lapis)
+### Arsitektur Hybrid (Dua Lapis)
 1. **Lapis 1 — Isolation Forest (unsupervised):** belajar pola normal tanpa
-   label, menghasilkan *skor anomali*.
-2. **Lapis 2 — Random Forest + XGBoost (supervised):** belajar dari label `is_fraud`,
-   memakai fitur perilaku **+ skor anomali dari Lapis 1** sebagai fitur.
-   - Random Forest: model baseline stabil
-   - XGBoost: model advanced dengan performa tinggi
+   label, menghasilkan *skor anomali* sebagai fitur tambahan.
+2. **Lapis 2 — 1 Model Supervised Terbaik:** belajar dari label `fraud_severity`,
+   memakai fitur perilaku **+ skor anomali dari Lapis 1**.
+   - Train RF & XGBoost, bandingkan F1-macro, simpan hanya pemenang.
+
+### Label Severity (Multi-class)
+| Level | Deskripsi | Profil Fraud |
+|-------|-----------|--------------|
+| **LOW** | Transaksi normal | — |
+| **MEDIUM** | Refund nominal wajar, frekuensi abnormal | Profil C (Halus) |
+| **HIGH** | Refund nominal menengah, berulang | Profil B (Sedang) |
+| **CRITICAL** | Refund besar beruntun (A) atau SALE anomali larut malam (D) | Profil A & Profil D |
 
 ### Pipeline
 ```
-Tahap 1: generate_synthetic_data.ipynb
-         ├─ Generate 2000+ transaksi normal
-         ├─ Inject 3 profil fraud (mencolok → halus)
-         └─ Output: database/local_pos.db
+Tahap 1: notebooks/01_generate_synthetic_data.ipynb
+         ├─ Generate 2000+ transaksi normal + 222 fraud (3 profil)
+         ├─ Label multi-class: LOW / MEDIUM / HIGH / CRITICAL
+         └─ Output: data/raw/synthetic_transactions.csv + database/local_pos.db
                     ↓
-Tahap 2: 01_train_isolation_forest.ipynb
-         ├─ Train Isolation Forest (unsupervised)
-         └─ Output: models/isolation_forest.pkl
+Tahap 2: notebooks/02_eda_and_preprocessing.ipynb
+         ├─ Exploratory Data Analysis (visualisasi, statistik)
+         ├─ Data cleaning (duplikat, missing values, validasi)
+         └─ Output: data/processed/transactions_cleaned.csv
                     ↓
-Tahap 3: 02_train_supervised.ipynb
-         ├─ Train Random Forest + XGBoost (supervised)
-         ├─ Konsisten train/test split (stratified 70/30)
-         ├─ Feature importance comparison
-         └─ Output: models/supervised_rf.pkl, supervised_xgb.pkl, test_split.pkl
+Tahap 3: notebooks/03_feature_engineering.ipynb
+         ├─ Hitung 11 fitur perilaku kasir (termasuk is_late_night & freq z-score)
+         ├─ Encode target (severity → ordinal 0-3)
+         ├─ Stratified split: train 70% / val 15% / test 15%
+         ├─ Scaling dengan RobustScaler
+         └─ Output: data/splits/*.csv, models/scaler.pkl, models/feature_columns.json
                     ↓
-Tahap 4: 03_evaluate.ipynb
-         ├─ Perbandingan 3 model: IF Baseline vs RF vs XGBoost
-         ├─ Metrics: Precision, Recall, F1, PR-AUC
-         ├─ Visualisasi PR curve 3 model
-         └─ Confusion matrix & analisis
+Tahap 4: notebooks/04_model_training.ipynb
+         ├─ Train Isolation Forest (unsupervised) → anomaly score
+         ├─ Train Random Forest & XGBoost (supervised, multi-class)
+         ├─ Bandingkan F1-macro → pilih 1 pemenang
+         └─ Output: models/isolation_forest.pkl, models/best_supervised.pkl,
+                    models/model_metadata.json
                     ↓
-Tahap 5 (Opsional): 04_tune.ipynb
-         ├─ Hyperparameter tuning RF & XGBoost (RandomizedSearchCV)
-         ├─ Visualisasi Default vs Tuned
-         ├─ Overwrite model terbaik → models/supervised_rf.pkl & supervised_xgb.pkl
-         └─ Jalankan ulang 03_evaluate.ipynb setelah ini untuk melihat hasil tuning
+Tahap 5: notebooks/05_evaluation.ipynb
+         ├─ Evaluasi final pada test set
+         ├─ Classification report, confusion matrix 4×4
+         ├─ Feature importance & visualisasi
+         └─ Kesimpulan & rekomendasi
                     ↓
-Tahap 6: api/app.py (Flask)
-         ├─ Import scoring_engine.py sebagai modul Python (bukan notebook)
-         ├─ REST API endpoint /api/score & /api/summary/<cashier_id>
+Tahap 6 (Opsional): notebooks/06_hyperparameter_tuning.ipynb
+         ├─ RandomizedSearchCV (30 iter × 5-fold)
+         ├─ Bandingkan default vs tuned
+         ├─ Overwrite model jika tuned lebih baik
+         └─ Jalankan ulang 05_evaluation.ipynb setelah ini
+                    ↓
+API: api/app.py (Flask)
+         ├─ Import scoring_engine.py sebagai modul Python
+         ├─ REST API endpoints untuk scoring & dashboard
          └─ scoring_engine.py dipanggil otomatis — tidak perlu dijalankan manual
 ```
 
@@ -70,21 +86,23 @@ pip install -r requirements.txt
 
 ### 2. Jalankan Pipeline (Jupyter Notebook)
 ```bash
+cd ml_pipeline
 jupyter notebook
 ```
 
 Buka & jalankan notebook **IN ORDER (berurutan)**:
 
- #  File  Deskripsi  Estimasi Waktu 
+ #  File  Deskripsi  Estimasi Waktu
 
- 1    `ml_pipeline/generate_synthetic_data.ipynb`    Generate data sintetis → `database/local_pos.db`    ~30 detik   
- 2    `ml_pipeline/01_train_isolation_forest.ipynb`    Train Lapis 1 (Isolation Forest)    ~1-2 menit   
- 3    `ml_pipeline/02_train_supervised.ipynb`    Train Lapis 2 (RF + XGBoost)    ~2-3 menit   
- 4    `ml_pipeline/03_evaluate.ipynb`    Evaluasi & perbandingan 3 model    ~1-2 menit   
- 5    `ml_pipeline/04_tune.ipynb`    *(Opsional)* Hyperparameter tuning RF & XGBoost    ~5-10 menit   
+ 1    `notebooks/01_generate_synthetic_data.ipynb`    Generate data sintetis → CSV + SQLite    ~30 detik
+ 2    `notebooks/02_eda_and_preprocessing.ipynb`    EDA & Data Cleaning    ~1 menit
+ 3    `notebooks/03_feature_engineering.ipynb`    Feature Engineering, Split & Scaling    ~1 menit
+ 4    `notebooks/04_model_training.ipynb`    Train hybrid model (IF + best supervised)    ~2-3 menit
+ 5    `notebooks/05_evaluation.ipynb`    Evaluasi final pada test set    ~1 menit
+ 6    `notebooks/06_hyperparameter_tuning.ipynb`    *(Opsional)* Hyperparameter tuning    ~5-10 menit
 
-> **Catatan:** `04_tune.ipynb` bersifat **opsional** — `02_train_supervised.ipynb` sudah
-> menghasilkan model yang siap pakai. Setelah tuning, jalankan ulang `03_evaluate.ipynb`.
+> **Catatan:** `06_hyperparameter_tuning.ipynb` bersifat **opsional** — `04_model_training.ipynb` sudah
+> menghasilkan model yang siap pakai. Setelah tuning, jalankan ulang `05_evaluation.ipynb`.
 >
 > `scoring_engine.py` **tidak perlu dijalankan manual** — ia adalah modul Python yang
 > otomatis di-`import` oleh `api/app.py` saat API dijalankan.
@@ -97,21 +115,16 @@ python api/app.py
 
 #### Endpoint yang Tersedia
 
-Endpoint Method Deskripsi 
-`/health` GET Status API, database, dan model 
-`/api/score` POST Skor fraud untuk batch transaksi 
-`/api/summary/<cashier_id>` GET Ringkasan risiko per kasir 
-`/api/cashiers` GET Daftar semua kasir + statistik 
-`/api/dashboard` GET Statistik keseluruhan (untuk dashboard) 
-`/api/transactions` POST Simpan transaksi baru ke DB 
-`/api/transactions` GET Ambil transaksi (filter & pagination) 
-`/api/model-info` GET Info model ML yang tersedia 
-`/api/batch-score` POST Score semua transaksi di DB 
-
-#### Ganti Model
-Bisa pilih model saat request via `model_type`:
-- `"rf"` — Random Forest (default)
-- `"xgboost"` — XGBoost
+Endpoint Method Deskripsi
+`/health` GET Status API, database, dan model
+`/api/score` POST Skor fraud untuk batch transaksi
+`/api/summary/<cashier_id>` GET Ringkasan risiko per kasir
+`/api/cashiers` GET Daftar semua kasir + statistik
+`/api/dashboard` GET Statistik keseluruhan (untuk dashboard)
+`/api/transactions` POST Simpan transaksi baru ke DB
+`/api/transactions` GET Ambil transaksi (filter & pagination)
+`/api/model-info` GET Info model ML yang tersedia
+`/api/batch-score` POST Score semua transaksi di DB
 
 ---
 
@@ -139,9 +152,7 @@ Kasir input transaksi
 UI diperbarui dengan tingkat risiko
 ```
 
-### File PWA & Frontend Restructured
-
-Struktur file frontend berada langsung di bawah direktori `pwa/` yang memisahkan HTML, CSS, dan Javascript secara terpisah:
+### File PWA & Frontend
 
 | File / Folder | Deskripsi |
 |---|---|
@@ -190,40 +201,49 @@ python -m http.server 8080
 ```
 FraudGuard/
 ├─ ml_pipeline/
+│  ├─ data/                                    # Data pipeline (auto-generated)
+│  │  ├─ raw/                                  #   Output Tahap 1: data sintetis mentah
+│  │  │  └─ synthetic_transactions.csv
+│  │  ├─ processed/                            #   Output Tahap 2: data bersih
+│  │  │  └─ transactions_cleaned.csv
+│  │  └─ splits/                               #   Output Tahap 3: train/val/test splits
+│  │     ├─ X_train.csv, X_val.csv, X_test.csv
+│  │     └─ y_train.csv, y_val.csv, y_test.csv
+│  │
+│  ├─ notebooks/                               # Semua notebook ML di sini
+│  │  ├─ 01_generate_synthetic_data.ipynb      #   [Tahap 1] Generate data → CSV
+│  │  ├─ 02_eda_and_preprocessing.ipynb        #   [Tahap 2] EDA + Cleaning
+│  │  ├─ 03_feature_engineering.ipynb          #   [Tahap 3] Fitur + Split + Scaling
+│  │  ├─ 04_model_training.ipynb              #   [Tahap 4] Train hybrid model
+│  │  ├─ 05_evaluation.ipynb                  #   [Tahap 5] Evaluasi test set
+│  │  └─ 06_hyperparameter_tuning.ipynb       #   [Tahap 6] Tuning (opsional)
+│  │
 │  ├─ models/                                  # Output model (auto-generated)
-│  │  ├─ isolation_forest.pkl                 # Lapis 1 — output dari 01_train_isolation_forest
-│  │  ├─ supervised_rf.pkl                    # Lapis 2 RF — output dari 02 atau 04_tune
-│  │  ├─ supervised_xgb.pkl                   # Lapis 2 XGBoost — output dari 02 atau 04_tune
-│  │  └─ test_split.pkl                       # Test split konsisten untuk evaluasi
+│  │  ├─ isolation_forest.pkl                  #   Lapis 1 — Isolation Forest
+│  │  ├─ best_supervised.pkl                   #   Lapis 2 — 1 model terbaik (RF atau XGB)
+│  │  ├─ scaler.pkl                            #   RobustScaler fitted
+│  │  ├─ feature_columns.json                  #   Daftar fitur & severity mapping
+│  │  └─ model_metadata.json                  #   Info model: nama, params, metrics
 │  │
-│  ├─ generate_synthetic_data.ipynb           # [Tahap 1] Generate data sintetis
-│  ├─ 01_train_isolation_forest.ipynb         # [Tahap 2] Train Isolation Forest
-│  ├─ 02_train_supervised.ipynb               # [Tahap 3] Train RF + XGBoost (default params)
-│  ├─ 03_evaluate.ipynb                       # [Tahap 4] Evaluasi & perbandingan 3 model
-│  ├─ 04_tune.ipynb                           # [Tahap 5 - Opsional] Hyperparameter tuning
-│  ├─ scoring_engine.ipynb                    # [Tahap 6] Demo scoring & review
+│  ├─ database/
+│  │  └─ local_pos.db                          # SQLite database (generated oleh Tahap 1)
 │  │
-│  ├─ feature_engineering.py                  # Modul Python — fitur perilaku kasir
-│  ├─ pola_b_features.py                      # Modul Python — build matriks fitur Pola B
-│  └─ scoring_engine.py                       # Modul Python — engine scoring untuk API
-│
-├─ database/
-│  └─ local_pos.db                            # SQLite database (generated oleh Tahap 1)
+│  └─ scoring_engine.py                        # Modul Python — engine scoring untuk API
 │
 ├─ api/
-│  └─ app.py                                  # Flask REST API
+│  └─ app.py                                   # Flask REST API
 │
-├─ pwa/                                        # [Tahap 7] Progressive Web App (offline-first)
+├─ pwa/                                        # Progressive Web App (offline-first)
 │  ├─ index.html                               # Landing page (root entrance)
 │  ├─ index.css                                # Style Landing page
 │  ├─ index.js                                 # Logika Landing page & Service Worker registration
 │  ├─ shared/                                  # Modul bersama (common.css, common.js)
-│  ├─ owner/                                   # Dashboard Owner (Stripe/Datadog theme)
+│  ├─ owner/                                   # Dashboard Owner
 │  ├─ cashier/                                 # Dashboard Kasir (offline IndexedDB)
 │  ├─ sw.js                                    # Service Worker (caching PWA)
 │  ├─ manifest.json                            # Web App Manifest
-│  ├─ icon-192x192.png                        # Ikon PWA 192px
-│  └─ icon-512x512.png                        # Ikon PWA 512px
+│  ├─ icon-192x192.png                         # Ikon PWA 192px
+│  └─ icon-512x512.png                         # Ikon PWA 512px
 │
 ├─ requirements.txt
 └─ README.md
@@ -231,29 +251,13 @@ FraudGuard/
 
 ---
 
-## Model Selection & Scoring
+## Fitur Keamanan
 
-### Dua Jalur Training
-- **`02_train_supervised.ipynb`** — Training cepat dengan parameter default (direkomendasikan untuk mulai)
-- **`04_tune.ipynb`** — Hyperparameter tuning dengan `RandomizedSearchCV` (50 iter × 5-fold),
-  otomatis overwrite model terbaik ke `models/`
-
-### Pilih Model di Runtime (`scoring_engine.py`)
-```python
-from scoring_engine import score_transactions, flag_for_review
-
-# Default: Random Forest
-scored = score_transactions(df)
-
-# Atau XGBoost
-scored = score_transactions(df, model_type="xgboost")
-
-# Dapatkan transaksi untuk ditinjau
-review = flag_for_review(scored)
-print(f"Flagged: {review['total_flagged']}")
-for flag in review['flags']:
-    print(f"  {flag['transaction_id']}: {flag['message']}")
-```
+- **`cashier_id` TIDAK dipakai sebagai fitur** → Cegah hafalan "kasir X = fraud"
+- **Nominal dihitung RELATIF per kasir (z-score)** → Cegah "nominal besar = fraud"
+- **`fraud_severity` HANYA target (y), TIDAK fitur (X)** → Jaminan kunci jawaban terpisah
+- **`stratify=y` saat split** → Proporsi severity terjaga di train, validation & test
+- **Test set terpisah** → Evaluasi final pada data yang belum pernah dilihat model
 
 ---
 
@@ -275,23 +279,18 @@ for flag in review['flags']:
 
 ## Troubleshooting
 
-### Q: `FileNotFoundError: No such file or directory: 'models/supervised_rf.pkl'`
-**A:** Jalankan `02_train_supervised.ipynb` dulu sampai selesai (Cell terakhir).
-Model RF dan test split akan tersimpan otomatis ke `models/`.
+### Q: `FileNotFoundError: No such file or directory: 'models/best_supervised.pkl'`
+**A:** Jalankan `04_model_training.ipynb` dulu sampai selesai (Cell terakhir).
+Model terbaik akan tersimpan otomatis ke `models/best_supervised.pkl`.
 
-### Q: `ModuleNotFoundError: No module named 'feature_engineering'`
+### Q: `ModuleNotFoundError: No module named 'scoring_engine'`
 **A:**
-- Pastikan file `feature_engineering.py` ada di folder `ml_pipeline/`
+- Pastikan file `scoring_engine.py` ada di folder `ml_pipeline/`
 - Restart kernel notebook
-- Cell 1 setiap notebook sudah otomatis menambahkan `ml_pipeline/` ke `sys.path`
-
-### Q: "Model XGBoost tidak ada / ✗ XGB Model"
-**A:** XGBoost bersifat opsional. Ada dua penyebab:
-1. XGBoost belum terpasang → `pip install xgboost`
-2. `02_train_supervised.ipynb` dijalankan tanpa XGBoost terpasang → install lalu jalankan ulang
+- Cek `sys.path` di Cell 1
 
 ### Q: `No such table: transactions`
-**A:** Jalankan `generate_synthetic_data.ipynb` dulu untuk membuat database.
+**A:** Jalankan `01_generate_synthetic_data.ipynb` dulu untuk membuat database.
 
 ### Q: Hasil evaluasi berbeda setiap run
 **A:** Seharusnya SAMA karena `random_state=42` di semua tempat. Jika berbeda:
@@ -312,33 +311,15 @@ Model RF dan test split akan tersimpan otomatis ke `models/`.
 
 ---
 
-## Fitur Keamanan
-
-- **`cashier_id` TIDAK dipakai sebagai fitur** → Cegah hafalan "kasir X = fraud"
-- **Nominal dihitung RELATIF per kasir (z-score)** → Cegah "nominal besar = fraud"
-- **`is_fraud` HANYA target (y), TIDAK fitur (X)** → Jaminan kunci jawaban terpisah
-- **`stratify=y` saat split** → Proporsi fraud terjaga di train & test
-- **Test split tersimpan** → Evaluasi konsisten & reproducible
-
----
-
-## Tiga Penyesuaian yang Diterapkan
-- **#1 Cakupan:** fokus refund; klaim = "deteksi penyalahgunaan refund".
-- **#2 Evaluasi:** label `is_fraud` disimpan; fraud beragam (mencolok → halus) &
-  tersebar ke beberapa kasir (anti hafalan jalan pintas).
-- **#3 Tindakan:** sistem **menandai untuk ditinjau / minta otorisasi**, bukan
-  memblokir otomatis. Sistem menunjuk, **manusia memutuskan**.
-
----
-
 ## Batasan Jujur
 
 1. **Data sintetis, kondisi terkontrol.**
    Precision/recall hanya berlaku untuk fraud buatan ini, **BUKAN bukti kinerja
    di dunia nyata**. Validasi nyata butuh kasus fraud terkonfirmasi dari pemilik UMKM.
 
-2. **Skoring per-batch kini konsisten.**
-   *(Update: Bug teknis sebelumnya telah diperbaiki).* Saat API men-skor transaksi baru, sistem akan otomatis menarik 500 riwayat transaksi terakhir kasir dari database lokal sebagai *konteks*. Fitur perilaku (seperti z-score nominal) dihitung berdasarkan histori lengkap ini, bukan sekadar batch sesaat.
+2. **Model hybrid 1 supervised.**
+   Hanya 1 model supervised yang dipakai (dipilih otomatis antara RF vs XGBoost).
+   Tidak ada ensemble dari beberapa model.
 
 3. **"Anomali ≠ fraud".**
    Output adalah *kecurigaan untuk ditinjau*, bukan vonis.

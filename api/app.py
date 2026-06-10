@@ -24,10 +24,9 @@
  Jalankan: python api/app.py  (model harus sudah dilatih: 01 lalu 02)
 """
 
-from flask import blueprints
-from pandas import api
 import os
 import sys
+import json
 import sqlite3
 import logging
 from datetime import datetime
@@ -35,7 +34,7 @@ from datetime import datetime
 import pandas as pd
 from flask import Flask, request, jsonify
 
-#  Setup logging 
+# Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s] %(levelname)s - %(message)s",
@@ -43,13 +42,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger("fraudguard")
 
-#  Import ML pipeline 
+# Import ML pipeline
 _APP_DIR = os.path.dirname(os.path.abspath(__file__))
 _ML_DIR = os.path.join(_APP_DIR, "..", "ml_pipeline")
 sys.path.insert(0, _ML_DIR)
 
-from scoring_engine import score_transactions, flag_for_review, RISK_LEVELS
-from feature_engineering import FEATURE_COLS
+from scoring_engine import score_transactions, flag_for_review, FEATURE_COLS, SEVERITY_LABELS
 
 app = Flask(__name__)
 
@@ -129,8 +127,8 @@ def _check_models_available() -> dict:
     models_dir = os.path.join(_ML_DIR, "models")
     return {
         "isolation_forest": os.path.exists(os.path.join(models_dir, "isolation_forest.pkl")),
-        "supervised_rf": os.path.exists(os.path.join(models_dir, "supervised_rf.pkl")),
-        "supervised_xgb": os.path.exists(os.path.join(models_dir, "supervised_xgb.pkl")),
+        "best_supervised": os.path.exists(os.path.join(models_dir, "best_supervised.pkl")),
+        "scaler": os.path.exists(os.path.join(models_dir, "scaler.pkl")),
     }
 
 
@@ -229,7 +227,7 @@ def health():
         "database": "connected" if db_exists else "not_found",
         "models": models,
         "features": FEATURE_COLS,
-        "risk_levels": RISK_LEVELS,
+        "severity_labels": SEVERITY_LABELS,
         "timestamp": datetime.now().isoformat(),
     })
 
@@ -245,8 +243,7 @@ def score_endpoint():
         "transactions": [
             {"id": "...", "cashier_id": "...", "timestamp": "...",
              "transaction_type": "SALE|REFUND", "amount": 50000}
-        ],
-        "model_type": "rf" | "xgboost"   (opsional, default: "rf")
+        ]
     }
     """
     try:
@@ -280,9 +277,8 @@ def score_endpoint():
         batch_ids = set(df["id"].astype(str).tolist())
         df_context = _load_cashier_history(cashier_ids, exclude_ids=batch_ids)
 
-        # Scoring
-        model_type = data.get("model_type", None)
-        scored = score_transactions(df, model_type=model_type, df_context=df_context)
+        # Scoring (model hybrid: IF + supervised terbaik)
+        scored = score_transactions(df, df_context=df_context)
         review = flag_for_review(scored)
 
         # Format output
@@ -491,6 +487,28 @@ def dashboard_stats():
             LIMIT 10
         """, conn, params=params)
 
+        # Top kasir berisiko berdasarkan deteksi AI (HIGH/CRITICAL)
+        top_risk = pd.read_sql_query(f"""
+            SELECT
+                cashier_id,
+                COUNT(*)                                        AS total_txn,
+                SUM(CASE WHEN risk_level = 'HIGH' THEN 1 ELSE 0 END) AS high_count,
+                SUM(CASE WHEN risk_level = 'CRITICAL' THEN 1 ELSE 0 END) AS critical_count,
+                SUM(CASE WHEN risk_level IN ('CRITICAL', 'HIGH')
+                         THEN 1 ELSE 0 END)                    AS risk_count,
+                ROUND(
+                    SUM(CASE WHEN risk_level IN ('CRITICAL', 'HIGH')
+                             THEN 1.0 ELSE 0 END) / COUNT(*) * 100,
+                    2
+                )                                               AS risk_ratio_pct
+            FROM transactions
+            {where_clause}
+            GROUP BY cashier_id
+            HAVING total_txn >= 5
+            ORDER BY risk_count DESC
+            LIMIT 10
+        """, conn, params=params)
+
         conn.close()
 
         row = stats.iloc[0]
@@ -513,6 +531,7 @@ def dashboard_stats():
             },
             "daily_trend": daily.to_dict(orient="records"),
             "top_refund_cashiers": top_refund.to_dict(orient="records"),
+            "top_risk_cashiers": top_risk.to_dict(orient="records"),
         })
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 503
@@ -690,7 +709,7 @@ def get_transactions():
         return jsonify({"error": str(e)}), 500
 
 
-#  Model Info 
+# Model Info
 @app.route("/api/model-info", methods=["GET"])
 def model_info():
     """Info model ML yang tersedia."""
@@ -709,19 +728,26 @@ def model_info():
             ).isoformat()
         model_details[name] = detail
 
+    # Load model metadata jika tersedia
+    meta_path = os.path.join(models_dir, "model_metadata.json")
+    model_meta = {}
+    if os.path.exists(meta_path):
+        with open(meta_path) as f:
+            model_meta = json.load(f)
+
     return jsonify({
         "status": "success",
-        "default_model": "rf",
-        "available_model_types": ["rf", "xgboost"],
+        "model_info": model_meta,
         "models": model_details,
         "feature_columns": FEATURE_COLS,
-        "risk_levels": RISK_LEVELS,
+        "severity_labels": SEVERITY_LABELS,
         "pipeline_stages": [
-            "1. generate_synthetic_data.ipynb → Buat data sintetis",
-            "2. 01_train_isolation_forest.ipynb → Train Isolation Forest",
-            "3. 02_train_supervised.ipynb → Train RF & XGBoost",
-            "4. 03_evaluate.ipynb → Evaluasi model",
-            "5. 04_tune.ipynb → Hyperparameter tuning",
+            "1. 01_generate_synthetic_data.ipynb - Generate data sintetis ke CSV",
+            "2. 02_eda_and_preprocessing.ipynb - EDA & Cleaning",
+            "3. 03_feature_engineering.ipynb - Feature engineering & Splitting",
+            "4. 04_model_training.ipynb - Train hybrid model (IF + supervised)",
+            "5. 05_evaluation.ipynb - Evaluasi pada test set",
+            "6. 06_hyperparameter_tuning.ipynb - Tuning (opsional)",
         ],
     })
 
@@ -734,14 +760,12 @@ def batch_score():
 
     Body JSON (opsional):
     {
-        "model_type": "rf" | "xgboost",
         "rescore_all": false,
         "cashier_id": "C001"       (opsional, filter kasir tertentu)
     }
     """
     try:
         data = request.get_json() or {}
-        model_type = data.get("model_type", None)
         rescore_all = data.get("rescore_all", False)
         cashier_filter = data.get("cashier_id", None)
 
@@ -775,17 +799,20 @@ def batch_score():
                 "scored_count": 0,
             })
 
-        # Score
-        scored = score_transactions(df, model_type=model_type)
+        # Score (model hybrid: IF + supervised terbaik)
+        scored = score_transactions(df)
         review = flag_for_review(scored)
 
         # Update DB dengan skor
+        # is_fraud diatur 1 jika AI mendeteksi risk_level != 'LOW'
+        # Catatan: Ini adalah "AI detected fraud", bukan final confirmed fraud.
         conn = sqlite3.connect(_get_db_path())
         cursor = conn.cursor()
         for _, row in scored.iterrows():
+            is_fraud = 1 if row["risk_level"] != "LOW" else 0
             cursor.execute(
-                "UPDATE transactions SET fraud_score = ?, risk_level = ? WHERE id = ?",
-                (float(row["fraud_score"]), row["risk_level"], row["id"]),
+                "UPDATE transactions SET fraud_score = ?, risk_level = ?, is_fraud = ? WHERE id = ?",
+                (float(row["fraud_score"]), row["risk_level"], is_fraud, row["id"]),
             )
         conn.commit()
         conn.close()

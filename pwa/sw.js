@@ -68,8 +68,7 @@ self.addEventListener('fetch', function (event) {
 
     apakahPermintaanAPI = event.request.url.includes('/api/');
 
-    // Jika request mengarah ke API Flask backend, kita biarkan saja (jangan di-cache di sini)
-    // karena PWA akan memakai db.js (IndexedDB) untuk menangani data transaksi API
+    // Jika request mengarah ke API Flask backend, kita biarkan saja 
     if (apakahPermintaanAPI) {
         return;
     }
