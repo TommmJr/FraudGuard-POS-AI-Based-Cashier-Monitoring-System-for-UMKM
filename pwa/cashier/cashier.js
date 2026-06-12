@@ -4,6 +4,11 @@ let loggedInCashierId = "CSH-001";
 let cashierActivityChart = null;
 
 //  CLOCK AND CASHER IDENTIFICATION 
+function formatTimestampSQL(date) {
+    const pad = n => n.toString().padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
 function updateRealtimeClock() {
     const clockSpan = document.getElementById("clock").querySelector("span");
     const timeNow = new Date();
@@ -67,28 +72,49 @@ async function syncLocalTransactions() {
         // POST to Flask transactions endpoint
         const resSave = await fetch(`${API_BASE_URL}/transactions`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                "X-API-Key": "fraudguard-capstone-2026"
+            },
             body: JSON.stringify({ transactions: unsynced })
         });
 
-        if (resSave.ok) {
-            // Trigger batch score
-            const resScore = await fetch(`${API_BASE_URL}/batch-score`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({})
-            });
-            const scoreRes = await resScore.json();
+        if (!resSave.ok) {
+            const errData = await resSave.json().catch(() => ({}));
+            const errMsg = errData.error || `HTTP ${resSave.status}`;
+            triggerToast("Sync Failed", `Server error: ${errMsg}`, "critical");
+            refreshNetworkStatus(false);
+            return;
+        }
 
-            if (scoreRes.status === "success") {
-                // Update local status inside IndexedDB
-                for (let record of unsynced) {
-                    record.is_synced = 1;
-                    await saveLocalTransaction(record);
-                }
+        const saveResult = await resSave.json();
 
-                triggerToast("Sync Success", `Synced & scored ${scoreRes.scored_count} transactions`, "success");
+        // Tandai is_synced=1 SEGERA setelah berhasil tersimpan ke server
+        // Ini dilakukan terlepas dari apakah batch-score berhasil atau tidak
+        for (let record of unsynced) {
+            record.is_synced = 1;
+            await saveLocalTransaction(record);
+        }
 
+        triggerToast(
+            "Sync Success",
+            `${saveResult.saved} transactions saved to server (${saveResult.skipped_duplicates || 0} skipped)`,
+            "success"
+        );
+
+        // Trigger batch score secara fire-and-forget (tidak memblokir)
+        // Skor AI akan muncul setelah di-refresh
+        fetch(`${API_BASE_URL}/batch-score`, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "X-API-Key": "fraudguard-capstone-2026"
+            },
+            body: JSON.stringify({})
+        })
+        .then(res => res.json())
+        .then(scoreRes => {
+            if (scoreRes && scoreRes.status === "success") {
                 // Print AI Alert toasts
                 if (scoreRes.review && scoreRes.review.flags) {
                     scoreRes.review.flags.forEach(f => {
@@ -99,8 +125,14 @@ async function syncLocalTransactions() {
                         }
                     });
                 }
+                // Refresh tabel agar skor AI tampil
+                renderDashboardView();
             }
-        }
+        })
+        .catch(scoreErr => {
+            console.warn("Batch score fire-and-forget failed (non-critical):", scoreErr);
+        });
+
         refreshNetworkStatus(true);
     } catch (err) {
         console.error("Autosync failed:", err);
@@ -203,23 +235,41 @@ async function renderDashboardView() {
     let txs = [];
 
     try {
-        const res = await fetch(`${API_BASE_URL}/transactions?cashier_id=${loggedInCashierId}&per_page=50&sort=desc`);
+        const res = await fetch(`${API_BASE_URL}/transactions?cashier_id=${loggedInCashierId}&per_page=50&sort=desc`, {
+            headers: { "X-API-Key": "fraudguard-capstone-2026" }
+        });
         if (res.ok) {
             const data = await res.json();
-            txs = data.transactions;
+            const serverTxs = data.transactions;
+
+            // Clean up old synced transactions to prevent duplication, keep unsynced ones
+            const currentLocalTxs = await getCachedTransactions();
+            // Clear old synced transactions for this cashier
+            const localTxs = await getCachedTransactions();
+            for (let localTx of localTxs) {
+                if (localTx.is_synced === 1 && localTx.cashier_id === loggedInCashierId) {
+                    await deleteLocalTransaction(localTx.id);
+                }
+            }
 
             // Back up locally
-            for (let record of txs) {
+            for (let record of serverTxs) {
                 record.is_synced = 1;
                 await saveLocalTransaction(record);
             }
             refreshNetworkStatus(true);
+
+            // Get all (server + local unsynced)
+            const allLocal = await getCachedTransactions();
+            txs = allLocal.filter(t => t.cashier_id === loggedInCashierId);
         } else {
             txs = await getCachedTransactions();
+            txs = txs.filter(t => t.cashier_id === loggedInCashierId);
         }
     } catch (err) {
         console.warn("Backend offline, loading data locally from IndexedDB.");
         txs = await getCachedTransactions();
+        txs = txs.filter(t => t.cashier_id === loggedInCashierId);
         refreshNetworkStatus(false);
     }
 
@@ -292,7 +342,7 @@ function generateCashierMockData() {
         dummy.push({
             id: crypto.randomUUID(),
             cashier_id: loggedInCashierId,
-            timestamp: txTime.toISOString(),
+            timestamp: formatTimestampSQL(txTime),
             transaction_type: type,
             amount: amt,
             risk_level: risk,
@@ -328,7 +378,7 @@ document.getElementById("form-transaksi").addEventListener("submit", async funct
     const newTx = {
         id: crypto.randomUUID(),
         cashier_id: loggedInCashierId,
-        timestamp: new Date().toISOString(),
+        timestamp: formatTimestampSQL(new Date()),
         transaction_type: typeInput,
         amount: amountInput,
         risk_level: null,

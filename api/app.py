@@ -4,18 +4,18 @@
  API Backend — Jembatan antara PWA dan ML Pipeline.
 
  Endpoint yang tersedia:
-   GET  /health                  → Status API & model
-   POST /api/score               → Skor fraud untuk batch transaksi
-   GET  /api/summary/<cashier_id>→ Ringkasan risiko per kasir
-   GET  /api/cashiers            → Daftar semua kasir + statistik
-   GET  /api/dashboard           → Statistik keseluruhan (dashboard)
-   POST /api/transactions        → Simpan transaksi baru ke DB
-   GET  /api/transactions        → Ambil transaksi (filter & pagination)
-   GET  /api/model-info          → Info model ML yang tersedia
-   POST /api/batch-score         → Score semua transaksi di DB
+   GET  /health                  -> Status API & model
+   POST /api/score               -> Skor fraud untuk batch transaksi
+   GET  /api/summary/<cashier_id>-> Ringkasan risiko per kasir
+   GET  /api/cashiers            -> Daftar semua kasir + statistik
+   GET  /api/dashboard           -> Statistik keseluruhan (dashboard)
+   POST /api/transactions        -> Simpan transaksi baru ke DB
+   GET  /api/transactions        -> Ambil transaksi (filter & pagination)
+   GET  /api/model-info          -> Info model ML yang tersedia
+   POST /api/batch-score         -> Score semua transaksi di DB
 
  Fitur:
-   - Query memakai PARAMETER (?), bukan f-string → aman dari SQL injection.
+   - Query memakai PARAMETER (?), bukan f-string -> aman dari SQL injection.
    - Respons memakai "flag_for_review", bukan blokir otomatis.
    - /api/score mengambil histori kasir dari DB sebelum scoring
      sehingga fitur perilaku dihitung dengan konteks yang benar.
@@ -51,7 +51,6 @@ from scoring_engine import score_transactions, flag_for_review, FEATURE_COLS, SE
 
 app = Flask(__name__)
 
-# CORS diperlukan agar PWA (browser) bisa memanggil API ini.
 # Dibuat opsional supaya app tetap jalan walau flask_cors belum terpasang.
 try:
     from flask_cors import CORS
@@ -73,6 +72,12 @@ _HISTORY_LIMIT = 500
 # Default pagination
 _DEFAULT_PAGE_SIZE = 50
 _MAX_PAGE_SIZE = 500
+
+
+def _sanitize_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Ganti NaN/Inf dengan None agar JSON valid (NaN bukan valid JSON)."""
+    import numpy as np
+    return df.replace({np.nan: None, np.inf: None, -np.inf: None})
 
 
 def _get_db_path() -> str:
@@ -166,12 +171,13 @@ def _load_cashier_history(cashier_ids: list, exclude_ids: set = None) -> pd.Data
         LIMIT  {_HISTORY_LIMIT * len(cashier_ids)}
     """
     try:
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect(db_path, timeout=10)
         df = pd.read_sql_query(
             query, conn,
-            params=list(cashier_ids),
-            parse_dates=["timestamp"],
+            params=list(cashier_ids)
         )
+        if not df.empty and "timestamp" in df.columns:
+            df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, format="mixed").dt.tz_localize(None)
         conn.close()
     except Exception:
         return pd.DataFrame()
@@ -236,7 +242,7 @@ def health():
 @app.route("/api/score", methods=["POST"])
 def score_endpoint():
     """
-    Terima daftar transaksi → kembalikan skor + daftar tinjauan.
+    Terima daftar transaksi -> kembalikan skor + daftar tinjauan.
 
     Body JSON:
     {
@@ -265,7 +271,7 @@ def score_endpoint():
                 }), 400
 
         df = pd.DataFrame(transactions)
-        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df["timestamp"] = pd.to_datetime(df["timestamp"], format="mixed")
 
         # Pastikan kolom 'id' ada
         if "id" not in df.columns:
@@ -317,13 +323,14 @@ def score_endpoint():
 def cashier_summary(cashier_id):
     """Ringkasan risiko per kasir (untuk dashboard)."""
     try:
-        conn = _get_db_connection()
+        limit = 500
+        conn = sqlite3.connect(_get_db_path(), timeout=10)
         df = pd.read_sql_query(
-            "SELECT id, cashier_id, timestamp, transaction_type, amount, is_fraud "
-            "FROM transactions WHERE cashier_id = ? "
-            "ORDER BY timestamp DESC LIMIT 500",
-            conn, params=(cashier_id,), parse_dates=["timestamp"],
+            "SELECT * FROM transactions WHERE cashier_id = ? AND is_fraud IS NOT NULL ORDER BY timestamp DESC LIMIT ?",
+            conn, params=(cashier_id, limit),
         )
+        if not df.empty and "timestamp" in df.columns:
+            df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True, format="mixed").dt.tz_localize(None)
         conn.close()
 
         if df.empty:
@@ -336,13 +343,18 @@ def cashier_summary(cashier_id):
         refund_count = int((df["transaction_type"] == "REFUND").sum())
         refund_ratio = round(refund_count / len(df) * 100, 2) if len(df) > 0 else 0
 
+        # Safely compute statistics to prevent NaN JSON crashes
+        avg_score = scored["fraud_score"].mean()
+        max_score = scored["fraud_score"].max()
+        min_score = scored["fraud_score"].min()
+
         return jsonify({
             "cashier_id": cashier_id,
             "total_transactions": int(len(scored)),
             "total_amount": round(total_amount, 2),
-            "avg_fraud_score": round(float(scored["fraud_score"].mean()), 2),
-            "max_fraud_score": round(float(scored["fraud_score"].max()), 2),
-            "min_fraud_score": round(float(scored["fraud_score"].min()), 2),
+            "avg_fraud_score": round(float(avg_score), 2) if pd.notna(avg_score) else 0.0,
+            "max_fraud_score": round(float(max_score), 2) if pd.notna(max_score) else 0.0,
+            "min_fraud_score": round(float(min_score), 2) if pd.notna(min_score) else 0.0,
             "critical_count": int((scored["risk_level"] == "CRITICAL").sum()),
             "high_count": int((scored["risk_level"] == "HIGH").sum()),
             "medium_count": int((scored["risk_level"] == "MEDIUM").sum()),
@@ -392,6 +404,11 @@ def list_cashiers():
                          THEN 1 ELSE 0 END)                    AS refund_count,
                 SUM(CASE WHEN is_fraud = 1
                          THEN 1 ELSE 0 END)                    AS fraud_count,
+                ROUND(AVG(fraud_score), 2)                      AS avg_fraud_score,
+                SUM(CASE WHEN risk_level = 'CRITICAL'
+                         THEN 1 ELSE 0 END)                    AS critical_count,
+                SUM(CASE WHEN risk_level = 'HIGH'
+                         THEN 1 ELSE 0 END)                    AS high_count,
                 MAX(timestamp)                                  AS last_transaction
             FROM transactions
             GROUP BY cashier_id
@@ -407,7 +424,7 @@ def list_cashiers():
         return jsonify({
             "status": "success",
             "total_cashiers": len(df),
-            "cashiers": df.to_dict(orient="records"),
+            "cashiers": _sanitize_df(df).to_dict(orient="records"),
         })
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 503
@@ -423,7 +440,7 @@ def dashboard_stats():
     Statistik keseluruhan untuk dashboard PWA.
 
     Query params (opsional):
-        ?days=7   → hanya data 7 hari terakhir (default: semua)
+        ?days=7   -> hanya data 7 hari terakhir (default: semua)
     """
     try:
         conn = _get_db_connection()
@@ -444,6 +461,8 @@ def dashboard_stats():
                 ROUND(AVG(amount), 2)                           AS avg_amount,
                 SUM(CASE WHEN transaction_type = 'REFUND'
                          THEN 1 ELSE 0 END)                    AS total_refunds,
+                ROUND(SUM(CASE WHEN transaction_type = 'REFUND'
+                         THEN amount ELSE 0 END), 2)           AS total_refund_amount,
                 SUM(CASE WHEN is_fraud = 1
                          THEN 1 ELSE 0 END)                    AS total_fraud_labeled
             FROM transactions
@@ -526,12 +545,13 @@ def dashboard_stats():
                 "total_amount": float(row["total_amount"] or 0),
                 "avg_amount": float(row["avg_amount"] or 0),
                 "total_refunds": int(row["total_refunds"]),
+                "total_refund_amount": float(row["total_refund_amount"] or 0),
                 "total_fraud_labeled": int(row["total_fraud_labeled"]),
                 "refund_ratio_pct": refund_ratio,
             },
-            "daily_trend": daily.to_dict(orient="records"),
-            "top_refund_cashiers": top_refund.to_dict(orient="records"),
-            "top_risk_cashiers": top_risk.to_dict(orient="records"),
+            "daily_trend": _sanitize_df(daily).to_dict(orient="records"),
+            "top_refund_cashiers": _sanitize_df(top_refund).to_dict(orient="records"),
+            "top_risk_cashiers": _sanitize_df(top_risk).to_dict(orient="records"),
         })
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 503
@@ -545,7 +565,7 @@ def dashboard_stats():
 def save_transactions():
     """
     Simpan satu atau lebih transaksi baru ke DB.
-    Digunakan oleh PWA untuk sinkronisasi offline → online.
+    Digunakan oleh PWA untuk sinkronisasi offline -> online.
 
     Body JSON:
     {
@@ -584,6 +604,7 @@ def save_transactions():
 
         saved = 0
         skipped = 0
+        saved_ids = []
         for txn in transactions:
             import uuid as uuid_mod
             txn_id = txn.get("id", str(uuid_mod.uuid4()))
@@ -601,6 +622,7 @@ def save_transactions():
                 ))
                 if cursor.rowcount > 0:
                     saved += 1
+                    saved_ids.append(txn_id)
                 else:
                     skipped += 1
             except sqlite3.IntegrityError:
@@ -611,11 +633,55 @@ def save_transactions():
 
         logger.info(f"Saved {saved} transaksi, skipped {skipped} duplikat")
 
+        # Auto-score: jalankan scoring untuk transaksi yang belum punya skor
+        # Ini menggantikan ketergantungan pada fire-and-forget /api/batch-score
+        # dari PWA yang bisa gagal saat API restart/reload.
+        scored_count = 0
+        try:
+            if saved > 0:
+                score_conn = _get_db_connection()
+                df_unscore = pd.read_sql_query(
+                    "SELECT id, cashier_id, timestamp, transaction_type, amount "
+                    "FROM transactions WHERE fraud_score IS NULL "
+                    "ORDER BY cashier_id, timestamp",
+                    score_conn, parse_dates=["timestamp"],
+                )
+                score_conn.close()
+
+                if not df_unscore.empty:
+                    # Ambil histori kasir sebagai konteks agar fitur perilaku akurat
+                    cashier_ids = df_unscore["cashier_id"].unique().tolist()
+                    batch_ids = set(df_unscore["id"].astype(str).tolist())
+                    df_context = _load_cashier_history(cashier_ids, exclude_ids=batch_ids)
+                    scored = score_transactions(df_unscore, df_context=df_context)
+                    update_conn = sqlite3.connect(_get_db_path(), timeout=10)
+                    update_cursor = update_conn.cursor()
+                    update_data = []
+                    for _, row in scored.iterrows():
+                        is_fraud = 1 if row.get("risk_level", "LOW") != "LOW" else 0
+                        update_data.append((
+                            float(row["fraud_score"]) if pd.notna(row.get("fraud_score")) else None,
+                            row.get("risk_level"),
+                            is_fraud,
+                            str(row["id"])
+                        ))
+                    update_cursor.executemany(
+                        "UPDATE transactions SET fraud_score = ?, risk_level = ?, is_fraud = ? WHERE id = ?",
+                        update_data
+                    )
+                    update_conn.commit()
+                    update_conn.close()
+                    scored_count = len(scored)
+                    logger.info(f"Auto-scored {scored_count} transaksi setelah save")
+        except Exception as score_err:
+            logger.warning(f"Auto-score gagal (non-fatal): {score_err}")
+
         return jsonify({
             "status": "success",
             "saved": saved,
             "skipped_duplicates": skipped,
             "total_received": len(transactions),
+            "auto_scored": scored_count,
         })
     except Exception as e:
         logger.error(f"Error di POST /api/transactions: {e}", exc_info=True)
@@ -629,13 +695,13 @@ def get_transactions():
     Ambil transaksi dengan filter dan pagination.
 
     Query params:
-        ?cashier_id=C001        → filter kasir tertentu
-        ?type=REFUND            → filter tipe transaksi
-        ?start_date=2026-06-01  → filter dari tanggal
-        ?end_date=2026-06-03    → filter sampai tanggal
-        ?page=1                 → halaman (default: 1)
-        ?per_page=50            → jumlah per halaman (default: 50, max: 500)
-        ?sort=desc              → urutan waktu: asc/desc (default: desc)
+        ?cashier_id=C001        -> filter kasir tertentu
+        ?type=REFUND            -> filter tipe transaksi
+        ?start_date=2026-06-01  -> filter dari tanggal
+        ?end_date=2026-06-03    -> filter sampai tanggal
+        ?page=1                 -> halaman (default: 1)
+        ?per_page=50            -> jumlah per halaman (default: 50, max: 500)
+        ?sort=desc              -> urutan waktu: asc/desc (default: desc)
     """
     try:
         conn = _get_db_connection()
@@ -645,7 +711,7 @@ def get_transactions():
         txn_type = request.args.get("type")
         start_date = request.args.get("start_date")
         end_date = request.args.get("end_date")
-        page = request.args.get("page", 1, type=int)
+        page = max(1, request.args.get("page", 1, type=int))
         per_page = min(
             request.args.get("per_page", _DEFAULT_PAGE_SIZE, type=int),
             _MAX_PAGE_SIZE,
@@ -694,7 +760,7 @@ def get_transactions():
 
         return jsonify({
             "status": "success",
-            "transactions": df.to_dict(orient="records"),
+            "transactions": _sanitize_df(df).to_dict(orient="records"),
             "pagination": {
                 "page": page,
                 "per_page": per_page,
@@ -800,22 +866,37 @@ def batch_score():
             })
 
         # Score (model hybrid: IF + supervised terbaik)
-        scored = score_transactions(df)
+        # Ambil histori kasir sebagai konteks agar fitur perilaku akurat
+        cashier_ids = df["cashier_id"].unique().tolist()
+        batch_ids = set(df["id"].astype(str).tolist())
+        df_context = _load_cashier_history(cashier_ids, exclude_ids=batch_ids)
+        scored = score_transactions(df, df_context=df_context)
         review = flag_for_review(scored)
 
-        # Update DB dengan skor
-        # is_fraud diatur 1 jika AI mendeteksi risk_level != 'LOW'
-        # Catatan: Ini adalah "AI detected fraud", bukan final confirmed fraud.
-        conn = sqlite3.connect(_get_db_path())
-        cursor = conn.cursor()
+        # Update DB dengan skor (Optimized batch update)
+        db_conn = sqlite3.connect(_get_db_path(), timeout=10)
+        cursor = db_conn.cursor()
+        
+        update_data = []
         for _, row in scored.iterrows():
-            is_fraud = 1 if row["risk_level"] != "LOW" else 0
-            cursor.execute(
-                "UPDATE transactions SET fraud_score = ?, risk_level = ?, is_fraud = ? WHERE id = ?",
-                (float(row["fraud_score"]), row["risk_level"], is_fraud, row["id"]),
-            )
-        conn.commit()
-        conn.close()
+            is_fraud = 1 if row.get("risk_level", "LOW") != "LOW" else 0
+            update_data.append((
+                float(row["fraud_score"]) if pd.notna(row.get("fraud_score")) else None,
+                row.get("risk_level"),
+                is_fraud,
+                str(row["id"])
+            ))
+            
+        cursor.executemany(
+            """
+            UPDATE transactions
+            SET fraud_score = ?, risk_level = ?, is_fraud = ?
+            WHERE id = ?
+            """,
+            update_data
+        )
+        db_conn.commit()
+        db_conn.close()
 
         logger.info(
             f"Batch scored {len(scored)} transaksi, "

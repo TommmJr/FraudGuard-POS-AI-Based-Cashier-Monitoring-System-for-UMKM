@@ -37,33 +37,83 @@ function sortTable(column) {
     renderCashiersTable();
 }
 
+let isRefreshing = false;
+let refreshAbortController = null;
+
+function showOfflineBanner() {
+    let banner = document.getElementById("offline-banner");
+    if (!banner) {
+        banner = document.createElement("div");
+        banner.id = "offline-banner";
+        banner.style.cssText = "background: #f59e0b; color: white; text-align: center; padding: 10px; font-weight: bold; position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;";
+        banner.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Menampilkan Data Simulasi (Offline Mode)`;
+        document.body.prepend(banner);
+        document.querySelector("main") && (document.querySelector("main").style.marginTop = "40px");
+    }
+}
+
+function hideOfflineBanner() {
+    const banner = document.getElementById("offline-banner");
+    if (banner) {
+        banner.remove();
+        document.querySelector("main") && (document.querySelector("main").style.marginTop = "");
+    }
+}
+
 //  FETCH & LOAD DATA 
 async function refreshDashboardData() {
+    if (isRefreshing) {
+        if (refreshAbortController) refreshAbortController.abort();
+    }
+    isRefreshing = true;
+    refreshAbortController = new AbortController();
+    const signal = refreshAbortController.signal;
+
     const refreshBtn = document.getElementById("refresh-btn");
-    const icon = refreshBtn.querySelector("i");
-    icon.classList.add("fa-spin");
+    if (refreshBtn) {
+        const icon = refreshBtn.querySelector("i");
+        if (icon) icon.classList.add("fa-spin");
+    }
 
     try {
         // Fetch stats from common.js base API URL
-        const dashRes = await fetch(`${API_BASE_URL}/dashboard`);
+        const dashRes = await fetch(`${API_BASE_URL}/dashboard`, {
+            signal,
+            headers: { "X-API-Key": "fraudguard-capstone-2026" }
+        });
         if (dashRes.ok) {
             apiDashboard = await dashRes.json();
-        }
+        } else throw new Error(`Dashboard API Error: ${dashRes.status}`);
 
-        const cashiersRes = await fetch(`${API_BASE_URL}/cashiers`);
+        const cashiersRes = await fetch(`${API_BASE_URL}/cashiers`, {
+            signal,
+            headers: { "X-API-Key": "fraudguard-capstone-2026" }
+        });
         if (cashiersRes.ok) {
             const data = await cashiersRes.json();
             apiCashiers = data.cashiers;
-        }
+        } else throw new Error(`Cashiers API Error: ${cashiersRes.status}`);
 
-        const txsRes = await fetch(`${API_BASE_URL}/transactions?per_page=100`);
+        const txsRes = await fetch(`${API_BASE_URL}/transactions?per_page=500`, {
+            signal,
+            headers: { "X-API-Key": "fraudguard-capstone-2026" }
+        });
         if (txsRes.ok) {
             const data = await txsRes.json();
             apiTransactions = data.transactions;
-        }
+        } else throw new Error(`Transactions API Error: ${txsRes.status}`);
+        hideOfflineBanner();
     } catch (err) {
-        console.warn("Backend API offline or unreachable. Loading mock data fallback.", err);
-        loadLocalMockData();
+        if (err.name === 'AbortError') {
+            console.log("Fetch aborted for newer refresh.");
+            return;
+        }
+        console.error("Backend API error:", err);
+        triggerToast("Offline Mode", `Fetch Error: ${err.message}`, "critical");
+        showOfflineBanner();
+        return;
+    } finally {
+        isRefreshing = false;
     }
 
     // Refresh components
@@ -76,61 +126,35 @@ async function refreshDashboardData() {
     updateReportsView();
     rebuildCharts();
 
-    setTimeout(() => {
-        icon.classList.remove("fa-spin");
-    }, 600);
+    if (refreshBtn) {
+        setTimeout(() => {
+            const icon = refreshBtn.querySelector("i");
+            if (icon) icon.classList.remove("fa-spin");
+        }, 600);
+    }
 }
 
-//  LOCAL DUMMY FALLBACK DATA 
-function loadLocalMockData() {
-    apiDashboard = {
-        summary: {
-            total_transactions: 1420,
-            total_cashiers: 5,
-            total_amount: 114500000,
-            total_refunds: 9450000,
-            total_fraud_labeled: 14,
-            refund_ratio_pct: 8.27
-        },
-        daily_trend: Array.from({ length: 30 }, (_, i) => {
-            const date = new Date();
-            date.setDate(date.getDate() - (29 - i));
-            return {
-                date: date.toISOString().split('T')[0],
-                count: Math.floor(Math.random() * 20 + 30),
-                amount: Math.floor(Math.random() * 2000000 + 3000000),
-                refunds: Math.floor(Math.random() * 3),
-                frauds: Math.random() > 0.65 ? Math.floor(Math.random() * 2) : 0
-            };
-        })
-    };
 
-    apiCashiers = [
-        { cashier_id: "CSH-001", total_transactions: 280, total_amount: 24500000, refund_count: 18, refund_ratio_pct: 6.43, fraud_count: 1, last_transaction: "2026-06-10 12:45:00" },
-        { cashier_id: "CSH-002", total_transactions: 320, total_amount: 29800000, refund_count: 12, refund_ratio_pct: 3.75, fraud_count: 0, last_transaction: "2026-06-10 13:02:00" },
-        { cashier_id: "CSH-003", total_transactions: 310, total_amount: 22400000, refund_count: 28, refund_ratio_pct: 9.03, fraud_count: 3, last_transaction: "2026-06-10 11:30:00" },
-        { cashier_id: "CSH-004", total_transactions: 260, total_amount: 19800000, refund_count: 14, refund_ratio_pct: 5.38, fraud_count: 1, last_transaction: "2026-06-10 12:12:00" },
-        { cashier_id: "CSH-005", total_transactions: 250, total_amount: 18000000, refund_count: 32, refund_ratio_pct: 12.80, fraud_count: 9, last_transaction: "2026-06-10 13:05:00" }
-    ];
-
-    apiTransactions = [
-        { id: "tx-f182f01", cashier_id: "CSH-005", timestamp: "2026-06-10 13:05:00", transaction_type: "REFUND", amount: 650000, risk_level: "CRITICAL", fraud_score: 0.94 },
-        { id: "tx-e91823a", cashier_id: "CSH-005", timestamp: "2026-06-10 12:50:00", transaction_type: "REFUND", amount: 480000, risk_level: "HIGH", fraud_score: 0.82 },
-        { id: "tx-d238b12", cashier_id: "CSH-003", timestamp: "2026-06-10 11:30:00", transaction_type: "REFUND", amount: 500000, risk_level: "CRITICAL", fraud_score: 0.91 },
-        { id: "tx-c918bb1", cashier_id: "CSH-005", timestamp: "2026-06-10 10:15:00", transaction_type: "REFUND", amount: 350000, risk_level: "HIGH", fraud_score: 0.78 },
-        { id: "tx-b918f4a", cashier_id: "CSH-001", timestamp: "2026-06-10 09:44:00", transaction_type: "REFUND", amount: 250000, risk_level: "MEDIUM", fraud_score: 0.55 },
-        { id: "tx-a1928fa", cashier_id: "CSH-004", timestamp: "2026-06-10 09:12:00", transaction_type: "REFUND", amount: 320000, risk_level: "HIGH", fraud_score: 0.72 },
-        { id: "tx-991f28b", cashier_id: "CSH-005", timestamp: "2026-06-10 08:35:00", transaction_type: "SALE", amount: 980000, risk_level: "MEDIUM", fraud_score: 0.62 },
-        { id: "tx-881a28c", cashier_id: "CSH-005", timestamp: "2026-06-10 08:05:00", transaction_type: "REFUND", amount: 150000, risk_level: "LOW", fraud_score: 0.22 }
-    ];
+//  CURRENCY SHORT FORMAT 
+function formatCurrencyShort(amount) {
+    const num = Number(amount) || 0;
+    function compact(val, suffix) {
+        const r = Math.round(val * 10) / 10;
+        const str = Number.isInteger(r) ? r.toFixed(0) : r.toFixed(1);
+        return `Rp ${str.replace('.', ',')} ${suffix}`;
+    }
+    if (num >= 1_000_000_000) return compact(num / 1_000_000_000, 'M');
+    if (num >= 1_000_000) return compact(num / 1_000_000, 'Jt');
+    if (num >= 1_000) return compact(num / 1_000, 'Rb');
+    return `Rp ${num.toLocaleString('id-ID')}`;
 }
 
 //  UPDATE KPI NUMBERS 
 function updateKpiNumbers() {
     const summary = apiDashboard.summary;
     document.getElementById("kpi-total-tx").textContent = summary.total_transactions;
-    document.getElementById("kpi-revenue").textContent = formatCurrencyRupiah(summary.total_amount);
-    document.getElementById("kpi-refunds").textContent = formatCurrencyRupiah(summary.total_refunds);
+    document.getElementById("kpi-revenue").textContent = formatCurrencyShort(summary.total_amount);
+    document.getElementById("kpi-refunds").textContent = formatCurrencyShort(summary.total_refund_amount || 0);
     document.getElementById("kpi-fraud-cases").textContent = summary.total_fraud_labeled;
     document.getElementById("kpi-cashiers-count").textContent = apiCashiers.length;
 
@@ -143,10 +167,10 @@ function updateKpiNumbers() {
         else if (t.risk_level === "CRITICAL") crit++;
     });
 
-    document.getElementById("risk-box-low").textContent = low || 125;
-    document.getElementById("risk-box-medium").textContent = med || 42;
-    document.getElementById("risk-box-high").textContent = high || 8;
-    document.getElementById("risk-box-critical").textContent = crit || 6;
+    document.getElementById("risk-box-low").textContent = low;
+    document.getElementById("risk-box-medium").textContent = med;
+    document.getElementById("risk-box-high").textContent = high;
+    document.getElementById("risk-box-critical").textContent = crit;
 }
 
 //  RENDER TABLE & LISTS 
@@ -210,9 +234,15 @@ function renderTopRiskCashiers() {
     const list = document.getElementById("risk-cashiers-list");
     list.innerHTML = "";
 
-    const sorted = [...apiCashiers].sort((a, b) => (b.fraud_count * 10 + b.refund_ratio_pct) - (a.fraud_count * 10 + a.refund_ratio_pct));
+    // Urutkan dengan bobot: CRITICAL sangat berisiko (*10), HIGH berisiko sedang (*3), ditambah rasio refund
+    const sorted = [...apiCashiers].sort((a, b) => {
+        const riskA = (a.critical_count || 0) * 10 + (a.high_count || 0) * 3 + (a.refund_ratio_pct || 0);
+        const riskB = (b.critical_count || 0) * 10 + (b.high_count || 0) * 3 + (b.refund_ratio_pct || 0);
+        return riskB - riskA;
+    });
 
     sorted.slice(0, 5).forEach((c, idx) => {
+        const aiRisk = c.ai_risk_count || c.fraud_count || 0;
         const item = document.createElement("div");
         item.className = "risk-item";
         item.innerHTML = `
@@ -220,11 +250,11 @@ function renderTopRiskCashiers() {
                 <div class="rank">#${idx + 1}</div>
                 <div class="cashier-meta">
                     <h5>${c.cashier_id}</h5>
-                    <span>${c.total_transactions} Trx | Refund Ratio: ${c.refund_ratio_pct}%</span>
+                    <span>${c.total_transactions} Trx | Refund Ratio: ${c.refund_ratio_pct}% | Avg Fraud Score: ${(c.avg_fraud_score || 0).toFixed(1)}</span>
                 </div>
             </div>
             <div>
-                <span class="badge ${c.fraud_count > 5 ? 'risk-critical' : 'risk-high'}">${c.fraud_count} Fraud</span>
+                <span class="badge ${aiRisk > 5 ? 'risk-critical' : 'risk-high'}">${aiRisk} Fraud</span>
             </div>
         `;
         list.appendChild(item);
@@ -306,24 +336,48 @@ async function showCashierModal(cashierId) {
     document.getElementById("modal-title").textContent = `Ringkasan Detail AI: ${cashierId}`;
     overlay.style.display = "flex";
 
+    // FIX BUG 4 (owner.js): Load summary stats + ALL cashier transactions in parallel
+    // /api/summary hanya mengembalikan 10 transaksi terbaru di field 'recent',
+    // sementara /api/transactions?cashier_id=... mendukung pagination penuh.
     let summary = null;
+    let cashierTxns = [];
+
     try {
-        const res = await fetch(`${API_BASE_URL}/summary/${cashierId}`);
-        if (res.ok) {
-            summary = await res.json();
+        const [summaryRes, txnsRes] = await Promise.all([
+            fetch(`${API_BASE_URL}/summary/${cashierId}`, {
+                headers: { "X-API-Key": "fraudguard-capstone-2026" }
+            }),
+            fetch(`${API_BASE_URL}/transactions?cashier_id=${encodeURIComponent(cashierId)}&per_page=500&sort=desc`, {
+                headers: { "X-API-Key": "fraudguard-capstone-2026" }
+            }),
+        ]);
+
+        if (summaryRes.ok) {
+            summary = await summaryRes.json();
+        }
+        if (txnsRes.ok) {
+            const txnsData = await txnsRes.json();
+            cashierTxns = txnsData.transactions || [];
         }
     } catch (err) {
-        console.warn("Summary API fetch failed. Generating local cashier details.");
+        console.warn("Modal API fetch failed. Falling back to local data.", err);
     }
 
+    // Override atau fallback menggunakan data agregat penuh dari apiCashiers
+    const cashierObj = apiCashiers.find(c => c.cashier_id === cashierId) || {};
     if (!summary) {
-        const cashierObj = apiCashiers.find(c => c.cashier_id === cashierId) || {};
         summary = {
             refund_ratio_pct: cashierObj.refund_ratio_pct || 0,
-            avg_fraud_score: 0.38,
-            max_fraud_score: 0.88,
-            recent: apiTransactions.filter(t => t.cashier_id === cashierId)
+            avg_fraud_score: cashierObj.avg_fraud_score || 0,
+            max_fraud_score: 0,
         };
+    } else {
+        // Timpa metrik dengan agregat dari apiCashiers agar 100% konsisten
+        if (cashierObj.refund_ratio_pct !== undefined) summary.refund_ratio_pct = cashierObj.refund_ratio_pct;
+        if (cashierObj.avg_fraud_score !== undefined) summary.avg_fraud_score = cashierObj.avg_fraud_score;
+    }
+    if (cashierTxns.length === 0) {
+        cashierTxns = apiTransactions.filter(t => t.cashier_id === cashierId);
     }
 
     document.getElementById("modal-refund-pct").textContent = `${summary.refund_ratio_pct}%`;
@@ -333,10 +387,10 @@ async function showCashierModal(cashierId) {
     const tbody = document.getElementById("modal-recent-transactions");
     tbody.innerHTML = "";
 
-    if (summary.recent.length === 0) {
+    if (cashierTxns.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Tidak ada riwayat transaksi</td></tr>`;
     } else {
-        summary.recent.forEach(r => {
+        cashierTxns.forEach(r => {
             const tr = document.createElement("tr");
             const lvl = r.risk_level || "LOW";
             tr.innerHTML = `
@@ -344,7 +398,7 @@ async function showCashierModal(cashierId) {
                 <td><span class="badge ${r.transaction_type === 'SALE' ? 'sale' : 'refund'}">${r.transaction_type}</span></td>
                 <td><strong>${formatCurrencyRupiah(r.amount)}</strong></td>
                 <td class="text-muted">${r.timestamp}</td>
-                <td><code>${r.fraud_score ? r.fraud_score.toFixed(2) : "0.00"}</code></td>
+                <td><code>${r.fraud_score != null ? Number(r.fraud_score).toFixed(2) : "0.00"}</code></td>
                 <td><span class="badge risk-${lvl.toLowerCase()}">${lvl}</span></td>
             `;
             tbody.appendChild(tr);
@@ -467,10 +521,16 @@ function rebuildCharts() {
 
     // Doughnut Chart
     const pieCtx = document.getElementById("pieChart").getContext("2d");
-    const low = parseInt(document.getElementById("risk-box-low").textContent) || 120;
-    const med = parseInt(document.getElementById("risk-box-medium").textContent) || 35;
-    const high = parseInt(document.getElementById("risk-box-high").textContent) || 8;
-    const crit = parseInt(document.getElementById("risk-box-critical").textContent) || 4;
+    
+    const getVal = (id) => {
+        const val = parseInt(document.getElementById(id).textContent, 10);
+        return isNaN(val) ? 0 : val;
+    };
+    
+    const low = getVal("risk-box-low");
+    const med = getVal("risk-box-medium");
+    const high = getVal("risk-box-high");
+    const crit = getVal("risk-box-critical");
 
     pieChart = new Chart(pieCtx, {
         type: 'doughnut',
@@ -571,8 +631,8 @@ function renderOwnerTransactionsTable() {
         return;
     }
 
-    // Sort descending by timestamp
-    const sorted = [...filtered].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    // Sort descending by timestamp (Safari compatible)
+    const sorted = [...filtered].sort((a, b) => new Date(b.timestamp.replace(' ', 'T')) - new Date(a.timestamp.replace(' ', 'T')));
 
     sorted.forEach(t => {
         const tr = document.createElement("tr");
@@ -615,9 +675,15 @@ function updateReportsView() {
     }
 
     if (apiCashiers.length > 0) {
-        const highestRisk = [...apiCashiers].sort((a, b) => b.fraud_count - a.fraud_count)[0];
+        const highestRisk = [...apiCashiers].sort((a, b) => {
+            const riskA = (a.critical_count || 0) * 10 + (a.high_count || 0) * 3 + (a.refund_ratio_pct || 0);
+            const riskB = (b.critical_count || 0) * 10 + (b.high_count || 0) * 3 + (b.refund_ratio_pct || 0);
+            return riskB - riskA;
+        })[0];
+
         if (reportRiskCashier && highestRisk) {
-            reportRiskCashier.textContent = `${highestRisk.cashier_id} (${highestRisk.fraud_count} kasus)`;
+            const riskCount = highestRisk.ai_risk_count || highestRisk.fraud_count || 0;
+            reportRiskCashier.textContent = `${highestRisk.cashier_id} (${riskCount} peringatan)`;
         }
     }
 }
@@ -628,62 +694,93 @@ function setupReportsExporter() {
 
     if (btnPdf) {
         btnPdf.addEventListener("click", () => {
-            triggerToast("Ekspor Sukses", "Laporan analisis PDF audit operasional berhasil diunduh.", "success");
+            if (typeof window.jspdf === "undefined") {
+                triggerToast("Memuat Modul", "Mohon tunggu, memuat modul PDF...", "info");
+                const script = document.createElement("script");
+                script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+                script.onload = () => generatePDFReport();
+                document.body.appendChild(script);
+            } else {
+                generatePDFReport();
+            }
         });
     }
 
     if (btnCsv) {
         btnCsv.addEventListener("click", () => {
+            if (apiTransactions.length === 0) {
+                triggerToast("Ekspor Gagal", "Tidak ada data untuk diekspor.", "warning");
+                return;
+            }
+
+            const headers = ["ID", "Cashier ID", "Timestamp", "Type", "Amount", "Risk Level", "Fraud Score"];
+            const csvRows = [headers.join(",")];
+
+            apiTransactions.forEach(t => {
+                const row = [
+                    t.id,
+                    t.cashier_id,
+                    t.timestamp,
+                    t.transaction_type,
+                    t.amount,
+                    t.risk_level || "LOW",
+                    t.fraud_score || 0
+                ];
+                csvRows.push(row.join(","));
+            });
+
+            const blob = new Blob([csvRows.join("\n")], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `FraudGuard_Transactions_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+
             triggerToast("Ekspor Sukses", "Laporan riwayat transaksi CSV berhasil diunduh.", "success");
         });
     }
 }
 
-//  SETTINGS CONFIGURATION MANAGER
-function setupSettingsManager() {
-    const form = document.getElementById("owner-settings-form");
-    const apiUrlInput = document.getElementById("setting-api-url");
-    const thresholdInput = document.getElementById("setting-fraud-threshold");
-    const thresholdVal = document.getElementById("setting-threshold-value");
-    const intervalInput = document.getElementById("setting-refresh-interval");
 
-    if (!form) return;
+function generatePDFReport() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
 
-    // Load initial values
-    apiUrlInput.value = API_BASE_URL;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.text("FraudGuard AI Monitoring Report", 20, 20);
 
-    const savedThreshold = localStorage.getItem("fg_fraud_threshold") || "0.75";
-    thresholdInput.value = savedThreshold;
-    thresholdVal.textContent = savedThreshold;
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Generated: ${new Date().toLocaleString('id-ID')}`, 20, 30);
 
-    const savedInterval = localStorage.getItem("fg_refresh_interval") || "30";
-    intervalInput.value = savedInterval;
+    doc.text(`Total Transactions: ${apiDashboard?.summary?.total_transactions || 0}`, 20, 45);
+    doc.text(`Total Fraud Cases: ${apiDashboard?.summary?.total_fraud_labeled || 0}`, 20, 52);
+    doc.text(`Total Refunds: ${apiDashboard?.summary?.total_refunds || 0}`, 20, 59);
 
-    // Live threshold label feedback
-    thresholdInput.addEventListener("input", function () {
-        thresholdVal.textContent = this.value;
+    doc.setFont("helvetica", "bold");
+    doc.text("Top Risk Cashiers", 20, 75);
+    doc.setFont("helvetica", "normal");
+
+    let yPos = 85;
+    const sortedCashiers = [...apiCashiers].sort((a, b) => {
+        const riskA = (a.critical_count || 0) * 10 + (a.high_count || 0) * 3 + (a.refund_ratio_pct || 0);
+        const riskB = (b.critical_count || 0) * 10 + (b.high_count || 0) * 3 + (b.refund_ratio_pct || 0);
+        return riskB - riskA;
+    }).slice(0, 5);
+
+    sortedCashiers.forEach((c, idx) => {
+        const riskCount = c.ai_risk_count || c.fraud_count || 0;
+        doc.text(`${idx + 1}. ${c.cashier_id} - ${riskCount} peringatan AI (Refund Ratio: ${c.refund_ratio_pct}%)`, 20, yPos);
+        yPos += 7;
     });
 
-    // Form submission
-    form.addEventListener("submit", function (e) {
-        e.preventDefault();
-
-        const newUrl = apiUrlInput.value.trim();
-        const newThreshold = thresholdInput.value;
-        const newInterval = parseInt(intervalInput.value);
-
-        localStorage.setItem("fg_api_url", newUrl);
-        localStorage.setItem("fg_fraud_threshold", newThreshold);
-        localStorage.setItem("fg_refresh_interval", newInterval.toString());
-
-        API_BASE_URL = newUrl;
-
-        triggerToast("Pengaturan Disimpan", "Sistem berhasil memperbarui dengan konfigurasi baru.", "success");
-
-        // Restart dynamic auto refresh loop
-        startAutoRefresh();
-    });
+    doc.save(`FraudGuard_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+    triggerToast("Ekspor Sukses", "Laporan analisis PDF audit operasional berhasil diunduh.", "success");
 }
+
+
 
 //  AUTO REFRESH INTERVAL
 let refreshTimer = null;
@@ -760,10 +857,10 @@ function reactivateCashier(cashierId) {
     _pendingReactivateCashierId = cashierId;
     const hasRequest = getReactivationRequests().includes(cashierId);
 
-    document.getElementById("reactivate-cashier-name").textContent     = cashierId;
-    document.getElementById("reactivate-cashier-name-alt").textContent  = cashierId;
-    document.getElementById("reactivate-request-notice").style.display  = hasRequest ? "flex" : "none";
-    document.getElementById("reactivate-no-request").style.display      = hasRequest ? "none" : "block";
+    document.getElementById("reactivate-cashier-name").textContent = cashierId;
+    document.getElementById("reactivate-cashier-name-alt").textContent = cashierId;
+    document.getElementById("reactivate-request-notice").style.display = hasRequest ? "flex" : "none";
+    document.getElementById("reactivate-no-request").style.display = hasRequest ? "none" : "block";
     document.getElementById("reactivate-modal").style.display = "flex";
 }
 
@@ -838,7 +935,7 @@ document.getElementById("refresh-btn").addEventListener("click", refreshDashboar
 setupOwnerNavigation();
 setupTransactionFilters();
 setupReportsExporter();
-setupSettingsManager();
+
 refreshDashboardData();
 startAutoRefresh();
-updateReactivationBadge(); 
+updateReactivationBadge();

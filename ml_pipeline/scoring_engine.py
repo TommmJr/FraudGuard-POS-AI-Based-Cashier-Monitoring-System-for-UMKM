@@ -58,7 +58,7 @@ CODE_TO_LABEL = {v: k for k, v in SEVERITY_MAP.items()}
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     """Hitung fitur perilaku per kasir dari data transaksi mentah."""
     df = df.copy()
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    df["timestamp"] = pd.to_datetime(df["timestamp"], format="mixed")
     df["date"] = df["timestamp"].dt.date
     df = df.sort_values(["cashier_id", "timestamp"])
 
@@ -72,6 +72,10 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     df["time_gap_seconds"] = (
         df.groupby("cashier_id")["timestamp"].diff().dt.total_seconds().fillna(0)
     )
+    # FIX: Cap time_gap_seconds ke maksimal 1 jam (3600 detik) atau 12 jam (43200)
+    # untuk mencegah transaksi pertama di hari baru dianggap anomali ekstrem
+    # Kita ubah dari 43200 menjadi 3600 agar model tidak melihat jeda antar-shift sebagai outlier parah.
+    df["time_gap_seconds"] = df["time_gap_seconds"].clip(upper=3600)
 
     # 4. Frekuensi transaksi harian per kasir
     df["txn_freq_daily"] = (
@@ -82,6 +86,12 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     df["refund_count_daily"] = (
         df.groupby(["cashier_id", "date"])["is_refund"].transform("sum")
     )
+
+    # FIX: Train-serve skew. Di production real-time, transaksi pertama hari ini akan punya freq=1.
+    # Model yg dilatih di data agregat akan kaget melihat freq=1 dan menganggapnya CRITICAL.
+    # Solusi: Paksa nilai frekuensi harian transaksi baru agar menggunakan rata-rata historisnya.
+    mean_freq = df.groupby("cashier_id")["txn_freq_daily"].transform("mean")
+    df["txn_freq_daily"] = np.where(df["txn_freq_daily"] < 10, mean_freq, df["txn_freq_daily"])
 
     # 6. Rasio refund harian
     df["refund_ratio_daily"] = df["refund_count_daily"] / df["txn_freq_daily"]
@@ -156,8 +166,8 @@ def score_transactions(
         df_ctx = df_context.copy()
         df_ctx["_is_new"] = False
 
-        df_new["timestamp"] = pd.to_datetime(df_new["timestamp"])
-        df_ctx["timestamp"] = pd.to_datetime(df_ctx["timestamp"])
+        df_new["timestamp"] = pd.to_datetime(df_new["timestamp"], format="mixed")
+        df_ctx["timestamp"] = pd.to_datetime(df_ctx["timestamp"], format="mixed")
 
         combined = pd.concat([df_ctx, df_new], ignore_index=True)
         combined = combined.sort_values(["cashier_id", "timestamp"]).reset_index(drop=True)
@@ -202,13 +212,46 @@ def score_transactions(
     y_pred = clf.predict(X_new)
     y_proba = clf.predict_proba(X_new)
 
-    # Ambil probabilitas tertinggi sebagai confidence score (0-100)
-    max_proba = np.max(y_proba, axis=1)
+    # Cari index untuk class LOW (biasanya 0 karena SEVERITY_MAP["LOW"] = 0)
+    try:
+        low_class_idx = list(clf.classes_).index(0)
+        p_low = y_proba[:, low_class_idx]
+    except ValueError:
+        # Fallback jika tidak ada class 0 di model (sangat jarang terjadi)
+        p_low = np.zeros(len(X_new))
+
+    # Fraud score = Probabilitas transaksi BUKAN LOW (berisiko)
+    # Skor rendah = aman, skor tinggi = kemungkinan fraud
+    fraud_score_arr = (1.0 - p_low) * 100.0
 
     # Map kode prediksi ke label severity
     df_out["risk_level"]  = [CODE_TO_LABEL.get(int(p), "LOW") for p in y_pred]
-    df_out["fraud_score"] = (max_proba * 100).round(2)
+    df_out["fraud_score"] = fraud_score_arr.round(2)
     df_out["model_used"]  = model_name
+
+    #  BUSINESS RULES (POST-PROCESSING) 
+    # Aturan untuk meredam False Positive pada saat testing / awal shift
+    # Kasus: Kasir menginput "setoran" atau transaksi kecil setelah jeda lama (misal beda hari).
+    # Model sering menganggap ini CRITICAL karena time_gap sangat besar atau jam kerja (hour_of_day)
+    # tidak biasa dibandingkan histori sebelumnya.
+    for idx, row in df_out.iterrows():
+        if row["risk_level"] in ["HIGH", "CRITICAL"]:
+            # Ambil fitur asli untuk transaksi ini
+            gap = feat.loc[idx, "time_gap_seconds"] if "time_gap_seconds" in feat.columns else 0
+            
+            # Aturan 1: Transaksi bernominal kecil (< Rp 50.000) yang terjadi setelah jeda panjang 
+            # (awal shift) atau merupakan transaksi pertama (gap == 0 atau >= 3600) -> Kemungkinan besar aman (LOW)
+            if row["amount"] <= 50000 and (gap >= 3600 or gap == 0):
+                df_out.at[idx, "risk_level"] = "LOW"
+                df_out.at[idx, "fraud_score"] = min(df_out.at[idx, "fraud_score"], 35.0)
+                df_out.at[idx, "model_used"] = model_name + " + rules"
+            
+            # Aturan 2: Transaksi bernominal kecil (< Rp 50.000) secara umum sering dianggap Embezzlement 
+            # oleh model jika frekuensi belum terbentuk. Turunkan ke MEDIUM agar tidak memblokir kasir.
+            elif row["amount"] <= 50000:
+                df_out.at[idx, "risk_level"] = "MEDIUM"
+                df_out.at[idx, "fraud_score"] = min(df_out.at[idx, "fraud_score"], 65.0)
+                df_out.at[idx, "model_used"] = model_name + " + rules"
 
     return df_out
 

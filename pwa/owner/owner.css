@@ -653,3 +653,13 @@ tr:hover td {
         gap: 20px;
     }
 }
+
+.modal {
+    max-height: 90vh;
+    overflow: hidden;
+}
+
+.modal-body {
+    max-height: calc(90vh - 70px);
+    overflow-y: auto;
+}
