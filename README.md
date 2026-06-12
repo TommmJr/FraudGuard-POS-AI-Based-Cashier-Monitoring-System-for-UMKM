@@ -145,7 +145,7 @@ FraudGuard menyediakan **Progressive Web App** sebagai antarmuka kasir yang bers
 ```
 Kasir input transaksi
      ↓
-[IndexedDB Lokal] ← simpan offline-first
+[IndexedDB Lokal] ← simpan offline-first (kalau terjadi kendala jaringan)
      ↓ (saat online)
 [POST /api/transactions] → simpan ke SQLite backend
      ↓
@@ -326,5 +326,17 @@ Model terbaik akan tersimpan otomatis ke `models/best_supervised.pkl`.
    - AI beroperasi pada jejak digital (*Digital Footprint*). Jika kasir melakukan pencurian fisik murni tanpa menyentuh layar POS (menerima uang namun tidak mencetak struk), sistem AI buta terhadap kejadian tersebut.
    - **Solusi SOP Saat Ini**: Wajib dipadukan dengan kebijakan operasional "Belanja Gratis Jika Tidak Menerima Struk" untuk memaksa kasir menginput data, serta *Stock Opname* berkala untuk mendeteksi selisih persediaan.
    - **Future Work**: Potensi integrasi dengan IoT (sensor *Cash Drawer*) dan *Computer Vision* (CCTV AI) yang dapat memvalidasi apakah laci uang terbuka secara sinkron dengan log transaksi dari mesin POS.
+
+6. **Manipulasi Jam Perangkat & Jeda Waktu Offline (Offline Time Manipulation)**
+   - Ketika kasir offline, PWA mencatat `timestamp` menggunakan jam sistem lokal perangkat (`new Date()`). Kasir yang berniat curang dapat memanipulasi jam lokal sistem (di Windows/Android) atau sengaja menjeda waktu input agar seolah-olah tidak terjadi transaksi cepat beruntun.
+   - **Mitigasi/Solusi**: Membandingkan `timestamp` (klaim perangkat kasir) dengan `created_at` (waktu server saat sinkronisasi aktual). Adanya tumpukan transaksi dengan `created_at` yang sama persis namun `timestamp` terjeda lama akan terdeteksi sebagai anomali *Time Skew*.
+   - **Solusi SOP**: Penguncian pengaturan waktu perangkat kasir menggunakan MDM (*Mobile Device Management*) agar kasir tidak dapat mengubah jam lokal perangkat secara manual.
+
+7. **Manipulasi Transaksi Fiktif Offline (Offline Transaction Insertion)**
+   - Saat dalam keadaan offline, PWA tidak dapat mencocokkan ketersediaan stok atau status pembayaran secara *real-time* ke server pusat, sehingga kasir secara teoritis dapat menginput penjualan/refund fiktif ke database lokal browser.
+   - **Mitigasi/Solusi**: Deteksi anomali pasca-sinkronisasi (*delayed AI scoring*). Begitu online kembali dan data dikirim ke server, model AI akan menganalisis lonjakan nominal (`amount_zscore_cashier`) dan rasio refund (`refund_ratio_daily`) secara retrospektif.
+   - **Solusi SOP**: Penonaktifan input nominal manual (kasir wajib memindai barcode produk asli yang harganya sudah dikunci di database PWA lokal) dan audit berkala dengan *Stock Opname*.
+
+
 
 ---
