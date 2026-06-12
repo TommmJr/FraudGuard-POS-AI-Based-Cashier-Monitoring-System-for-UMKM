@@ -72,6 +72,7 @@ Tahap 6 (Opsional): notebooks/06_hyperparameter_tuning.ipynb
 API: api/app.py (Flask)
          ├─ Import scoring_engine.py sebagai modul Python
          ├─ REST API endpoints untuk scoring & dashboard
+         ├─ Dioptimalkan dengan batch update (executemany) & dynamic context loading
          └─ scoring_engine.py dipanggil otomatis — tidak perlu dijalankan manual
 ```
 
@@ -137,6 +138,8 @@ FraudGuard menyediakan **Progressive Web App** sebagai antarmuka kasir yang bers
 - **Service Worker** — Caching aset statis (HTML, CSS, JS) untuk akses tanpa internet
 - **Auto-Sync** — Sinkronisasi otomatis setiap 60 detik & saat koneksi kembali online
 - **Fraud Scoring Terintegrasi** — Setelah sync, backend otomatis men-score transaksi dan menampilkan tingkat risiko
+- **Ekspor Laporan Audit** — Menyediakan fitur ekspor laporan transaksi ke format CSV dan dokumen PDF analitik secara dinamis (menggunakan `jsPDF`).
+- **Auto API URL Detection** — Backend API URL terdeteksi otomatis, kompatibel dengan remote/cloud IDE (seperti GitHub Codespaces/Gitpod) maupun jaringan lokal.
 
 ### Arsitektur PWA
 ```
@@ -237,13 +240,17 @@ FraudGuard/
 
 ---
 
-## Fitur Keamanan
+## Fitur Keamanan & Penanganan False Positive
 
 - **`cashier_id` TIDAK dipakai sebagai fitur** → Cegah hafalan "kasir X = fraud"
 - **Nominal dihitung RELATIF per kasir (z-score)** → Cegah "nominal besar = fraud"
 - **`fraud_severity` HANYA target (y), TIDAK fitur (X)** → Jaminan kunci jawaban terpisah
 - **`stratify=y` saat split** → Proporsi severity terjaga di train, validation & test
 - **Test set terpisah** → Evaluasi final pada data yang belum pernah dilihat model
+- **Mitigasi Train-Serve Skew** → Mencegah lonjakan anomali/alarm palsu pada awal shift atau kasir baru dengan menggunakan rata-rata frekuensi historis jika transaksi harian di bawah 10.
+- **Batas Outlier Waktu (`time_gap_seconds` Cap)** → Membatasi jeda waktu transaksi maksimal 1 jam (3600 detik) untuk mencegah transisi hari/shift dianggap sebagai outlier ekstrem.
+- **Aturan Bisnis Pasca-Proses (Post-Processing Business Rules)** → Meredam false positive pada transaksi nominal kecil (≤ Rp 50.000) yang dideteksi HIGH/CRITICAL dengan memaksanya turun ke LOW (jika terjadi setelah jeda panjang/awal shift) atau MEDIUM.
+- **Peningkatan Presisi Fraud Score** → Mengubah kalkulasi skor menjadi berbasis probabilitas non-normal `(1.0 - p_low) * 100` guna memberikan metrik risiko yang lebih representatif dibandingkan probabilitas kelas tertinggi.
 
 ---
 
