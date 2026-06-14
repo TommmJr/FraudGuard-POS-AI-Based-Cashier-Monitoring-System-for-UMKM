@@ -17,9 +17,9 @@ beri **severity level** (LOW/MEDIUM/HIGH/CRITICAL) → **tandai untuk ditinjau m
 ## Arsitektur & Pipeline
 
 ### Arsitektur Hybrid (Dua Lapis)
-1. **Lapis 1 — Isolation Forest (unsupervised):** belajar pola normal tanpa
+1. **Lapis 1 : Isolation Forest (unsupervised):** belajar pola normal tanpa
    label, menghasilkan *skor anomali* sebagai fitur tambahan.
-2. **Lapis 2 — 1 Model Supervised Terbaik:** belajar dari label `fraud_severity`,
+2. **Lapis 2 : 1 Model Supervised Terbaik:** belajar dari label `fraud_severity`,
    memakai fitur perilaku **+ skor anomali dari Lapis 1**.
    - Train RF & XGBoost, bandingkan F1-macro, simpan hanya pemenang.
 
