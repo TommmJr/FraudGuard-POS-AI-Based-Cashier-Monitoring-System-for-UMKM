@@ -80,52 +80,107 @@ API: api/app.py (Flask)
 
 ## Quick Start
 
-### 1. Instalasi
+Ikuti langkah-langkah di bawah ini secara berurutan untuk menyiapkan lingkungan, menjalankan pipeline kecerdasan buatan, mengaktifkan API backend, dan menjalankan PWA secara lokal.
+
+### Langkah 1: Persiapan Lingkungan & Instalasi
+Sangat disarankan untuk menggunakan Python Virtual Environment (`venv`) agar dependensi tidak bentrok dengan pustaka sistem global Anda.
+
 ```bash
+# 1. Buat Virtual Environment
+python -m venv .venv
+
+# 2. Aktifkan Virtual Environment
+# Windows (PowerShell):
+.venv\Scripts\Activate.ps1
+# Windows (CMD):
+.venv\Scripts\activate.bat
+# Linux / macOS:
+source .venv/bin/activate
+
+# 3. Instal semua dependensi pustaka
 pip install -r requirements.txt
 ```
 
-### 2. Jalankan Pipeline (Jupyter Notebook)
+---
+
+### Langkah 2: Jalankan ML Pipeline (Jupyter Notebook)
+Sebelum menjalankan backend API, Anda **wajib** melatih model dan membuat database awal dengan menjalankan notebook-notebook di dalam folder `ml_pipeline/` secara **berurutan**.
+
 ```bash
 cd ml_pipeline
 jupyter notebook
 ```
 
-Buka & jalankan notebook **IN ORDER (berurutan)**:
+Buka browser dan jalankan file notebook berikut secara berurutan:
 
- #  File  Deskripsi  Estimasi Waktu
+1. **`01_generate_synthetic_data.ipynb`**  
+   *Membangun data sintetis transaksi normal & anomali kasir (2000+ data normal & 222 fraud). Menghasilkan berkas `synthetic_transactions.csv` di `data/raw/` dan berkas database SQLite `local_pos.db` di `database/`.*
+2. **`02_eda_and_preprocessing.ipynb`**  
+   *Melakukan pembersihan data, membuang duplikat, menangani missing values, dan visualisasi sebaran kelas target.*
+3. **`03_feature_engineering.ipynb`**  
+   *Menghitung 11 fitur perilaku (seperti nominal z-score, jeda waktu transaksi, is_late_night). Menghasilkan data split (train/val/test), standardisasi `scaler.pkl`, dan `feature_columns.json`.*
+4. **`04_model_training.ipynb`**  
+   *Melatih model hybrid dua lapis: Lapis 1 (unsupervised Isolation Forest) dan Lapis 2 (supervised multi-class terbaik dari Random Forest vs XGBoost). Menyimpan berkas model `isolation_forest.pkl`, `best_supervised.pkl`, dan metadata model.*
+5. **`05_evaluation.ipynb`**  
+   *Melakukan evaluasi performa model terpilih pada test set yang belum pernah dilihat model.*
+6. **`06_hyperparameter_tuning.ipynb`** *(Opsional)*  
+   *Optimasi hyperparameter (RandomizedSearchCV) untuk menyetel model terbaik secara otomatis.*
 
- 1    `notebooks/01_generate_synthetic_data.ipynb`    Generate data sintetis → CSV + SQLite    ~30 detik
- 2    `notebooks/02_eda_and_preprocessing.ipynb`    EDA & Data Cleaning    ~1 menit
- 3    `notebooks/03_feature_engineering.ipynb`    Feature Engineering, Split & Scaling    ~1 menit
- 4    `notebooks/04_model_training.ipynb`    Train hybrid model (IF + best supervised)    ~2-3 menit
- 5    `notebooks/05_evaluation.ipynb`    Evaluasi final pada test set    ~1 menit
- 6    `notebooks/06_hyperparameter_tuning.ipynb`    *(Opsional)* Hyperparameter tuning    ~5-10 menit
+---
 
-> **Catatan:** `06_hyperparameter_tuning.ipynb` bersifat **opsional** — `04_model_training.ipynb` sudah
-> menghasilkan model yang siap pakai. Setelah tuning, jalankan ulang `05_evaluation.ipynb`.
->
-> `scoring_engine.py` **tidak perlu dijalankan manual** — ia adalah modul Python yang
-> otomatis di-`import` oleh `api/app.py` saat API dijalankan.
+### Langkah 3: Jalankan API Backend (Flask Server)
+Kembali ke direktori utama proyek, lalu jalankan Flask backend. Flask API berfungsi sebagai jembatan antara aplikasi kasir (PWA) dengan mesin ML.
 
-### 3. Gunakan Model di API
 ```bash
+# Jalankan dari direktori utama proyek
 python api/app.py
-# API running at http://localhost:5000
 ```
+*API akan aktif di alamat `http://localhost:5000`.*
 
-#### Endpoint yang Tersedia
+**Fitur Cerdas API Backend:**
+*   **Auto-Migration**: Saat pertama kali berjalan, server akan memeriksa skema database. Jika database sudah ada dari notebook tetapi kolom `fraud_score` dan `risk_level` belum ada, API akan secara otomatis melakukan migrasi skema (menambahkan kolom baru) tanpa merusak data lama.
+*   **Background Auto-Scoring Thread**: API mengaktifkan thread latar belakang yang secara berkala memindai transaksi unscored (belum memiliki skor) di database SQLite untuk langsung di-skor secara retrospektif menggunakan model ML hybrid.
 
-Endpoint Method Deskripsi
-`/health` GET Status API, database, dan model
-`/api/score` POST Skor fraud untuk batch transaksi
-`/api/summary/<cashier_id>` GET Ringkasan risiko per kasir
-`/api/cashiers` GET Daftar semua kasir + statistik
-`/api/dashboard` GET Statistik keseluruhan (untuk dashboard)
-`/api/transactions` POST Simpan transaksi baru ke DB
-`/api/transactions` GET Ambil transaksi (filter & pagination)
-`/api/model-info` GET Info model ML yang tersedia
-`/api/batch-score` POST Score semua transaksi di DB
+#### Ringkasan Endpoint Utama:
+*   `GET /health` : Memeriksa status kesehatan API, koneksi database, dan kesiapan berkas model ML.
+*   `POST /api/transactions` : Menyimpan data transaksi baru ke database (digunakan PWA saat sinkronisasi).
+*   `GET /api/dashboard` : Mengambil data agregat analitik kecurangan untuk ditampilkan pada panel Owner.
+*   `GET /api/cashiers` : Menampilkan daftar kasir beserta ringkasan tingkat risiko dan rasio refund harian.
+
+---
+
+### Langkah 4: Jalankan dan Serve PWA (Frontend)
+Jalankan server HTTP lokal kecil di folder `pwa/` untuk mengakses aplikasi web POS offline-first.
+
+```bash
+# Serve halaman PWA
+cd pwa
+python -m http.server 8080
+```
+*Buka browser Anda dan akses halaman landing di `http://localhost:8080`.*
+
+#### Akun Kredensial Uji Coba (Login):
+*   **Pemilik Toko (Owner)**:  
+    *   Username: `owner` | Password: `owner123` *(Panel bertema merah gelap untuk monitoring)*
+*   **Kasir Toko (Dummy POS)**:
+    *   Kasir 1 (CSH-001): `kasir1` | Password: `kasir001`
+    *   Kasir 2 (CSH-002): `kasir2` | Password: `kasir002`
+    *   Kasir 3 (CSH-003): `kasir3` | Password: `kasir003`
+    *   Kasir 4 (CSH-004): `kasir4` | Password: `kasir004`
+    *   Kasir 5 (CSH-005): `kasir5` | Password: `kasir005`
+
+---
+
+### Langkah 5: Alur Pengujian Fitur Offline-First (Demo)
+1. **Login sebagai Kasir**: Masuk menggunakan akun `kasir1`.
+2. **Putuskan Jaringan**: Hentikan server API backend (Ctrl+C di terminal Flask) atau ubah jaringan browser Anda menjadi *Offline* via DevTools.
+3. **Simpan Transaksi**: Buat transaksi baru di tab kasir. Anda akan melihat notifikasi bahwa transaksi **berhasil disimpan secara offline** di database lokal browser (`IndexedDB`).
+4. **Login sebagai Owner**: Di browser terpisah, login sebagai `owner`. Anda tidak akan melihat transaksi baru tersebut karena server mati/offline.
+5. **Kembali Online**: Jalankan kembali server API backend (`python api/app.py`).
+6. **Autosync**: Dalam 30-60 detik, halaman kasir secara otomatis menyinkronkan transaksi IndexedDB lokal ke server. Anda juga dapat menekan tombol **Sync** manual di menu kasir.
+7. **AI Scoring**: Backend secara otomatis men-score transaksi yang baru masuk di latar belakang. Saat Owner memuat ulang dashboard, transaksi tersebut akan tampil beserta indikator tingkat risiko (`LOW`, `MEDIUM`, `HIGH`, atau `CRITICAL`) yang diwarnai sesuai tingkat keparahannya.
+
+---
 
 ---
 
