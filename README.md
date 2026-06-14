@@ -3,7 +3,7 @@
 Sistem deteksi kecurangan dan anomali **transaksi (Refund & Sale)** kasir untuk UMKM, dibangun dengan
 arsitektur **hybrid dua lapis**: skor anomali *Isolation Forest* (unsupervised)
 dipakai sebagai fitur tambahan untuk **satu model supervised terbaik** (Random Forest
-atau XGBoost — dipilih otomatis berdasarkan F1-Score).
+atau XGBoost lalu dipilih otomatis berdasarkan F1-Score).
 
 > **Cakupan saat ini: REFUND dan SALE anomali (Profil D).** VOID & DISCOUNT belum
 > dibuat datanya. Jangan mengklaim mendeteksi keduanya sampai datanya ada.
