@@ -8,6 +8,8 @@ let pieChart = null;
 let currentChartTab = 'fraud';
 let activeSortColumn = 'cashier_id';
 let activeSortDir = 'asc';
+let notifiedTxIds = new Set();
+let isInitialized = false;
 
 // Set active Date in navbar
 const dateOptions = { day: 'numeric', month: 'long', year: 'numeric' };
@@ -115,7 +117,27 @@ async function refreshDashboardData() {
         });
         if (txsRes.ok) {
             const data = await txsRes.json();
-            apiTransactions = data.transactions;
+            const txs = data.transactions || [];
+            
+            // Check for new anomalies only after the first load is completed
+            if (isInitialized) {
+                txs.forEach(t => {
+                    if (!notifiedTxIds.has(t.id)) {
+                        if (t.risk_level === "HIGH" || t.risk_level === "CRITICAL") {
+                            triggerToast(
+                                `Deteksi Aktivitas Mencurigakan (${t.risk_level})`,
+                                `Kasir ${t.cashier_id} melakukan transaksi mencurigakan senilai ${formatCurrencyRupiah(t.amount)}`,
+                                t.risk_level === "CRITICAL" ? "critical" : "warning"
+                            );
+                        }
+                    }
+                });
+            }
+            
+            // Register all transaction IDs as notified/seen
+            txs.forEach(t => notifiedTxIds.add(t.id));
+            isInitialized = true;
+            apiTransactions = txs;
         } else throw new Error(`Transactions API Error: ${txsRes.status}`);
         hideOfflineBanner();
     } catch (err) {
