@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FraudGuard - Cashier Dashboard</title>
+    
+    <!-- Shared Style Reset & Fonts -->
+    <link rel="stylesheet" href="../shared/common.css">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Cashier Styles Override -->
+    <link rel="stylesheet" href="cashier.css">
+    <link rel="manifest" href="../manifest.json">
+</head>
+<body>
+
+    <!-- Sidebar Navigation -->
+    <aside>
+        <div class="sidebar-brand">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>FraudGuard POS</span>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="active" data-section="dashboard">
+                <a href="#dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+            </li>
+            <li data-section="new-transaction">
+                <a href="#new-transaction"><i class="fa-solid fa-file-invoice-dollar"></i> New Transaction</a>
+            </li>
+            <li data-section="history">
+                <a href="#history"><i class="fa-solid fa-clock-rotate-left"></i> History</a>
+            </li>
+            <li data-section="sync-status">
+                <a href="#sync-status"><i class="fa-solid fa-cloud-arrow-up"></i> Sync Status</a>
+            </li>
+            <li data-section="profile">
+                <a href="../index.html"><i class="fa-solid fa-arrow-right-from-bracket"></i> Change Role</a>
+            </li>
+        </ul>
+        <div class="sidebar-footer">
+            FraudGuard POS v1.0<br>&copy; 2026 AI Cashier Guard
+        </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main>
+        
+        <!-- Top Navbar -->
+        <nav>
+            <div class="nav-left">
+                <div class="nav-title">Cashier POS Panel</div>
+            </div>
+            
+            <div class="nav-right">
+                <div class="realtime-clock" id="clock">
+                    <i class="fa-regular fa-clock"></i> <span>00:00:00</span>
+                </div>
+                <div class="cashier-info">
+                    <div class="status-badge online" id="status-network">
+                        <i class="fa-solid fa-circle"></i> <span>Online</span>
+                    </div>
+                    <div class="avatar" id="avatar-initials">CS</div>
+                    <div class="cashier-name" id="session-cashier">CSH-001</div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Dashboard Content Container -->
+        <div class="content">
+
+            <!-- Section: Dashboard -->
+            <div id="section-dashboard" class="dashboard-section active-section">
+                <!-- Summary Cards Row -->
+                <div class="summary-grid">
+                    <div class="card">
+                        <div class="card-info">
+                            <h3>Transaction Today</h3>
+                            <div class="value" id="card-tx-count">0</div>
+                        </div>
+                        <div class="card-icon blue">
+                            <i class="fa-solid fa-cash-register"></i>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-info">
+                            <h3>Sales Today</h3>
+                            <div class="value" id="card-sale-amount">Rp 0</div>
+                        </div>
+                        <div class="card-icon green">
+                            <i class="fa-solid fa-money-bill-wave"></i>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-info">
+                            <h3>Refund Today</h3>
+                            <div class="value" id="card-refund-amount">Rp 0</div>
+                        </div>
+                        <div class="card-icon amber">
+                            <i class="fa-solid fa-receipt"></i>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-info">
+                            <h3>Sync Status</h3>
+                            <div class="value" id="card-sync-status">Synced</div>
+                        </div>
+                        <div class="card-icon purple" id="card-sync-icon">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI status counts and activities graph -->
+                <div class="panel" style="margin-top: 24px;">
+                    <div class="panel-title">
+                        <i class="fa-solid fa-brain"></i> AI Detection Panel & Activity
+                    </div>
+                    
+                    <div class="ai-grid">
+                        <div class="ai-badge-card pending">
+                            <div class="count" id="ai-count-pending">0</div>
+                            <div class="label">Pending</div>
+                        </div>
+                        <div class="ai-badge-card low">
+                            <div class="count" id="ai-count-low">0</div>
+                            <div class="label">LOW</div>
+                        </div>
+                        <div class="ai-badge-card medium">
+                            <div class="count" id="ai-count-medium">0</div>
+                            <div class="label">MEDIUM</div>
+                        </div>
+                        <div class="ai-badge-card high">
+                            <div class="count" id="ai-count-high">0</div>
+                            <div class="label">HIGH</div>
+                        </div>
+                        <div class="ai-badge-card critical">
+                            <div class="count" id="ai-count-critical">0</div>
+                            <div class="label">CRITICAL</div>
+                        </div>
+                    </div>
+
+                    <!-- Chart canvas -->
+                    <div class="chart-container">
+                        <canvas id="cashierActivityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section: New Transaction -->
+            <div id="section-new-transaction" class="dashboard-section" style="display: none;">
+                <!-- New Transaction Input Form -->
+                <div class="panel">
+                    <div class="panel-title">
+                        <i class="fa-solid fa-file-invoice-dollar"></i> New Transaction
+                    </div>
+                    <form id="form-transaksi">
+                        <div class="form-group">
+                            <label for="input-cashier">Cashier ID</label>
+                            <input type="text" id="input-cashier" class="form-control" value="CSH-001" readonly required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="input-type">Transaction Type</label>
+                            <select id="input-type" class="form-control" required>
+                                <option value="SALE">SALE</option>
+                                <option value="REFUND">REFUND</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="input-amount">Amount (Rupiah)</label>
+                            <input type="number" id="input-amount" class="form-control" placeholder="Contoh: 75000" min="0" required>
+                        </div>
+
+                        <button type="submit" class="btn-submit">
+                            <i class="fa-solid fa-floppy-disk"></i> Save Transaction
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Section: History -->
+            <div id="section-history" class="dashboard-section" style="display: none;">
+                <!-- Latest History Table -->
+                <div class="panel table-panel">
+                    <div class="panel-title">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Transaction Table (History Today)
+                    </div>
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Kasir</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Risk Level</th>
+                                    <th>Time</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="body-riwayat-transaksi">
+                                <!-- Data rows render here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section: Sync Status Details -->
+            <div id="section-sync-status" class="dashboard-section" style="display: none;">
+                <div class="panel">
+                    <div class="panel-title">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Sinkronisasi Offline & Status Database
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 16px; font-size: 14px; color: var(--text-main);">
+                        <p>FraudGuard POS menyimpan semua transaksi secara lokal di database internal browser (<strong>IndexedDB</strong>) saat Anda offline, dan menyinkronkan data secara otomatis saat koneksi internet kembali online.</p>
+                        
+                        <div class="summary-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 10px 0;">
+                            <div class="card" style="padding: 20px; flex-direction: column; align-items: flex-start; gap: 6px;">
+                                <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Transaksi Belum Sinkron</span>
+                                <div class="value" id="sync-pending-count" style="font-size: 28px; font-weight: 850; color: var(--risk-medium);">0</div>
+                            </div>
+                            <div class="card" style="padding: 20px; flex-direction: column; align-items: flex-start; gap: 6px;">
+                                <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Total Transaksi Tersimpan</span>
+                                <div class="value" id="sync-total-count" style="font-size: 28px; font-weight: 850; color: var(--text-main);">0</div>
+                            </div>
+                        </div>
+
+                        <button id="sync-now-btn" class="btn-submit" style="max-width: 250px; margin-top: 10px;">
+                            <i class="fa-solid fa-rotate"></i> Sinkronkan Sekarang
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+    </main>
+
+    <!-- Cancel Transaction Confirmation Modal -->
+    <div id="cancel-tx-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:300; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+        <div style="max-width:440px; width:90%; background:var(--bg-card); border-radius:16px; padding:28px; border:1px solid var(--border-color); box-shadow:0 25px 50px rgba(0,0,0,0.4);">
+            <div style="display:flex; align-items:center; gap:14px; margin-bottom:18px;">
+                <div style="width:48px; height:48px; border-radius:50%; background:rgba(239,68,68,0.1); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="fa-solid fa-trash-can" style="font-size:20px; color:#EF4444;"></i>
+                </div>
+                <div>
+                    <h3 style="font-size:16px; font-weight:800; color:var(--text-main); margin:0 0 3px;">Batalkan Transaksi?</h3>
+                    <p style="font-size:12.5px; color:var(--text-muted); margin:0;">Transaksi lokal yang belum sync ke server</p>
+                </div>
+            </div>
+
+            <div style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.18); border-radius:10px; padding:14px 16px; margin-bottom:18px;">
+                <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Detail Transaksi</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13.5px;">
+                    <div><span style="color:var(--text-muted);">ID:</span> <code id="cancel-tx-id" style="font-size:12px;"></code></div>
+                    <div><span style="color:var(--text-muted);">Tipe:</span> <strong id="cancel-tx-type"></strong></div>
+                    <div><span style="color:var(--text-muted);">Jumlah:</span> <strong id="cancel-tx-amount" style="color:#EF4444;"></strong></div>
+                    <div><span style="color:var(--text-muted);">Waktu:</span> <span id="cancel-tx-time"></span></div>
+                </div>
+            </div>
+
+            <div style="background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.2); border-radius:8px; padding:10px 14px; margin-bottom:18px; font-size:12.5px; color:var(--text-main);">
+                <i class="fa-solid fa-triangle-exclamation" style="color:#F59E0B;"></i>
+                Transaksi ini <strong>hanya dihapus dari cache lokal browser</strong>. Karena belum tersinkronisasi ke server, pembatalan ini tidak akan tercatat di laporan Owner.
+            </div>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button onclick="closeCancelTxModal()" style="padding:10px 18px; border:1px solid var(--border-color); border-radius:8px; background:transparent; color:var(--text-main); font-weight:600; cursor:pointer; font-size:13.5px;">Batal</button>
+                <button onclick="confirmCancelTransaction()" style="padding:10px 18px; border:none; border-radius:8px; background:#DC2626; color:white; font-weight:700; cursor:pointer; font-size:13.5px; display:inline-flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-trash-can"></i> Ya, Batalkan Transaksi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shared JS utilities -->
+    <script src="../shared/common.js"></script>
+    
+    <!-- Cashier Logic -->
+    <script src="cashier.js"></script>
+
+</body>
+</html>

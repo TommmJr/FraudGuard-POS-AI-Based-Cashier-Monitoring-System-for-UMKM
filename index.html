@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FraudGuard POS - AI Cashier Monitoring System</title>
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="index.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+
+<body>
+
+    <!-- Header Section -->
+    <header>
+        <div class="logo">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>FraudGuard</span>
+            <span class="tag">PWA POS</span>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-badge">
+            <i class="fa-solid fa-brain"></i> Powered by AI Anomaly Detection
+        </div>
+        <h1>Mencegah Fraud Kasir UMKM dengan <span>FraudGuard AI</span></h1>
+        <p>Sistem POS Pintar untuk memantau transaksi, mendeteksi aktivitas transaksi anomali, dan menjaga profit usaha Anda
+            secara real-time.</p>
+    </section>
+
+    <!-- Login Area Workspace -->
+    <section class="workspace">
+        <div class="section-title">Pilih Akun Login untuk Masuk</div>
+
+        <div class="role-grid">
+
+            <!-- Owner Column -->
+            <div class="owner-column">
+                <div
+                    style="font-weight: 700; font-size: 12px; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px;">
+                    PEMILIK UMKM</div>
+
+                <div class="login-card owner-card" onclick="loginAsOwner()">
+                    <div class="card-avatar">
+                        <i class="fa-solid fa-user-tie"></i>
+                    </div>
+                    <h3>Owner Panel</h3>
+                    <p>owner@fraudguard.id</p>
+                    <button class="btn-enter">
+                        <span>Masuk Panel</span> <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                    <div class="cred-hint"><i class="fa-solid fa-key"></i> owner / owner123</div>
+                </div>
+            </div>
+
+            <!-- Cashier Column -->
+            <div class="cashier-column">
+                <div
+                    style="font-weight: 700; font-size: 12px; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px;">
+                    KASIR TOKO (DUMMY POS)</div>
+
+                <div class="cashier-list-grid">
+                    <!-- Kasir 1 -->
+                    <div class="login-card" onclick="loginAsCashier('CSH-001')">
+                        <div class="card-avatar"><i class="fa-solid fa-cash-register"></i></div>
+                        <h3>CSH-001</h3>
+                        <p>Kasir Utama Shift Pagi</p>
+                        <button class="btn-enter">Kasir 1 <i class="fa-solid fa-chevron-right"></i></button>
+                        <div class="cred-hint"><i class="fa-solid fa-key"></i> kasir1 / kasir001</div>
+                    </div>
+
+                    <!-- Kasir 2 -->
+                    <div class="login-card" onclick="loginAsCashier('CSH-002')">
+                        <div class="card-avatar"><i class="fa-solid fa-cash-register"></i></div>
+                        <h3>CSH-002</h3>
+                        <p>Kasir Shift Pagi</p>
+                        <button class="btn-enter">Kasir 2 <i class="fa-solid fa-chevron-right"></i></button>
+                        <div class="cred-hint"><i class="fa-solid fa-key"></i> kasir2 / kasir002</div>
+                    </div>
+
+                    <!-- Kasir 3 -->
+                    <div class="login-card" onclick="loginAsCashier('CSH-003')">
+                        <div class="card-avatar"><i class="fa-solid fa-cash-register"></i></div>
+                        <h3>CSH-003</h3>
+                        <p>Kasir Shift Siang</p>
+                        <button class="btn-enter">Kasir 3 <i class="fa-solid fa-chevron-right"></i></button>
+                        <div class="cred-hint"><i class="fa-solid fa-key"></i> kasir3 / kasir003</div>
+                    </div>
+
+                    <!-- Kasir 4 -->
+                    <div class="login-card" onclick="loginAsCashier('CSH-004')">
+                        <div class="card-avatar"><i class="fa-solid fa-cash-register"></i></div>
+                        <h3>CSH-004</h3>
+                        <p>Kasir Shift Malam</p>
+                        <button class="btn-enter">Kasir 4 <i class="fa-solid fa-chevron-right"></i></button>
+                        <div class="cred-hint"><i class="fa-solid fa-key"></i> kasir4 / kasir004</div>
+                    </div>
+
+                    <!-- Kasir 5 -->
+                    <div class="login-card" onclick="loginAsCashier('CSH-005')">
+                        <div class="card-avatar"><i class="fa-solid fa-cash-register"></i></div>
+                        <h3>CSH-005</h3>
+                        <p>Kasir Magang Shift Malam</p>
+                        <button class="btn-enter">Kasir 5 <i class="fa-solid fa-chevron-right"></i></button>
+                        <div class="cred-hint"><i class="fa-solid fa-key"></i> kasir5 / kasir005</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Stats & Info -->
+    <section class="workspace" style="margin-top: 0;">
+        <div class="stats-section">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <h2>1.420+</h2>
+                    <p>Transaksi Teranalisis</p>
+                </div>
+                <div class="stat-item">
+                    <h2>99.4%</h2>
+                    <p>Akurasi Deteksi AI</p>
+                </div>
+                <div class="stat-item">
+                    <h2>&lt; 2 Detik</h2>
+                    <p>Waktu Analisis Batch</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Grid -->
+        <div class="features-section">
+            <h3 class="features-title">Mengapa Memilih FraudGuard?</h3>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fa-solid fa-wifi-slash"></i></div>
+                    <h4>Offline-First POS Sync</h4>
+                    <p>Transaksi tetap dicatat lokal menggunakan IndexedDB saat internet mati, dan otomatis
+                        tersinkronisasi serta diskor oleh AI saat kembali online.</p>
+                </div>
+
+                <div class="feature-card red-feature">
+                    <div class="feature-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <h4>AI Anomaly Detection</h4>
+                    <p>Menganalisis jeda waktu (time gap), status refund (is_refund), dan z-score nominal transaksi terhadap rata-rata kasir secara real-time untuk mendeteksi anomali.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fa-solid fa-chart-line"></i></div>
+                    <h4>Owner Monitoring Dashboard</h4>
+                    <p>Dashboard terpusat bertema analitik merah premium bagi owner untuk mengawasi risiko anomali dan rasio refund kasir
+                        secara real-time.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-brand">
+            <i class="fa-solid fa-shield-halved"></i> FraudGuard POS
+        </div>
+        <p>AI-Based Cashier Monitoring System for UMKM - Capstone Project 2026</p>
+        <p style="opacity: 0.5; font-size: 11px;">Designed for Google Chrome and Modern Browsers. All rights reserved.
+        </p>
+    </footer>
+
+    <!-- Login Modal -->
+    <div id="login-modal"
+        style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:500; align-items:center; justify-content:center; backdrop-filter:blur(6px);">
+        <div class="login-modal-box"
+            style="max-width:420px; width:90%; background:#161B2E; border-radius:20px; padding:36px; border:1px solid rgba(255,255,255,0.08); box-shadow:0 30px 60px rgba(0,0,0,0.5);">
+            <div style="display:flex; align-items:center; gap:14px; margin-bottom:28px;">
+                <div
+                    style="width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg,#DC2626,#7F1D1D); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                    <i class="fa-solid fa-shield-halved" style="color:white; font-size:20px;"></i>
+                </div>
+                <div>
+                    <h3 style="margin:0 0 2px; font-size:16px; font-weight:800; color:#fff;">FraudGuard POS</h3>
+                    <p id="login-modal-title"
+                        style="margin:0; font-size:13px; color:rgba(255,255,255,0.5); font-weight:500;">Login</p>
+                </div>
+                <button onclick="closeLoginModal()"
+                    style="margin-left:auto; background:transparent; border:none; color:rgba(255,255,255,0.4); font-size:20px; cursor:pointer; padding:4px 8px; border-radius:6px;"
+                    onmouseover="this.style.color='#fff'"
+                    onmouseout="this.style.color='rgba(255,255,255,0.4)'">&times;</button>
+            </div>
+
+            <form onsubmit="submitLogin(event)">
+                <div style="margin-bottom:16px;">
+                    <label
+                        style="display:block; font-size:12px; font-weight:700; color:rgba(255,255,255,0.5); letter-spacing:0.5px; text-transform:uppercase; margin-bottom:8px;">Username</label>
+                    <input id="login-username-field" type="text" readonly
+                        style="width:100%; height:44px; border:1.5px solid rgba(255,255,255,0.1); border-radius:10px; padding:0 14px; font-size:14px; font-weight:600; background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.6); box-sizing:border-box; cursor:not-allowed; outline:none;">
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label
+                        style="display:block; font-size:12px; font-weight:700; color:rgba(255,255,255,0.5); letter-spacing:0.5px; text-transform:uppercase; margin-bottom:8px;">Password</label>
+                    <input id="login-password-field" type="password" placeholder="Masukkan password..."
+                        style="width:100%; height:44px; border:1.5px solid rgba(255,255,255,0.12); border-radius:10px; padding:0 14px; font-size:14px; background:rgba(255,255,255,0.06); color:#fff; box-sizing:border-box; outline:none; transition:border-color 0.2s;"
+                        onfocus="this.style.borderColor='rgba(220,38,38,0.6)'"
+                        onblur="this.style.borderColor='rgba(255,255,255,0.12)'">
+                </div>
+
+                <!-- Error message -->
+                <div id="login-error-msg"
+                    style="display:none; background:rgba(220,38,38,0.12); border:1px solid rgba(220,38,38,0.3); border-radius:8px; padding:10px 14px; font-size:13px; color:#FCA5A5; margin-bottom:16px;">
+                    <i class="fa-solid fa-circle-exclamation"></i> <span></span>
+                </div>
+
+                <button id="login-submit-btn" type="submit"
+                    style="width:100%; height:46px; border:none; border-radius:10px; background:linear-gradient(135deg,#DC2626,#B91C1C); color:white; font-size:15px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; transition:opacity 0.2s;"
+                    onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                    <i class="fa-solid fa-right-to-bracket"></i> Masuk
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="index.js" defer></script>
+</body>
+
+</html>
