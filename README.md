@@ -72,6 +72,7 @@ Tahap 6 (Opsional): notebooks/06_hyperparameter_tuning.ipynb
 API: api/app.py (Flask)
          ├─ Import scoring_engine.py sebagai modul Python
          ├─ REST API endpoints untuk scoring & dashboard
+         ├─ Dioptimalkan dengan batch update (executemany) & dynamic context loading
          └─ scoring_engine.py dipanggil otomatis — tidak perlu dijalankan manual
 ```
 
@@ -137,12 +138,14 @@ FraudGuard menyediakan **Progressive Web App** sebagai antarmuka kasir yang bers
 - **Service Worker** — Caching aset statis (HTML, CSS, JS) untuk akses tanpa internet
 - **Auto-Sync** — Sinkronisasi otomatis setiap 60 detik & saat koneksi kembali online
 - **Fraud Scoring Terintegrasi** — Setelah sync, backend otomatis men-score transaksi dan menampilkan tingkat risiko
+- **Ekspor Laporan Audit** — Menyediakan fitur ekspor laporan transaksi ke format CSV dan dokumen PDF analitik secara dinamis (menggunakan `jsPDF`).
+- **Auto API URL Detection** — Backend API URL terdeteksi otomatis, kompatibel dengan remote/cloud IDE (seperti GitHub Codespaces/Gitpod) maupun jaringan lokal.
 
 ### Arsitektur PWA
 ```
 Kasir input transaksi
      ↓
-[IndexedDB Lokal] ← simpan offline-first
+[IndexedDB Lokal] ← simpan offline-first (kalau terjadi kendala jaringan)
      ↓ (saat online)
 [POST /api/transactions] → simpan ke SQLite backend
      ↓
@@ -151,25 +154,6 @@ Kasir input transaksi
 UI diperbarui dengan tingkat risiko
 ```
 
-### File PWA & Frontend
-
-| File / Folder | Deskripsi |
-|---|---|
-| `pwa/index.html` | Halaman login utama, pilihan role Owner & 5 Cashier |
-| `pwa/index.css` | Style Halaman login utama/landing page |
-| `pwa/index.js` | Logika Halaman login utama & registrasi Service Worker |
-| `pwa/shared/common.css` | CSS global (reset, font, animations, utility) |
-| `pwa/shared/common.js` | Utilitas JS bersama (API wrapper, IndexedDB, Toast alert) |
-| `pwa/owner/owner-dashboard.html` | UI Dashboard Pemilik (Owner Panel) |
-| `pwa/owner/owner.css` | Style Dashboard Pemilik bertema merah gelap |
-| `pwa/owner/owner.js` | Logika Dashboard Pemilik (grafik analitik, sortable table, detail modal) |
-| `pwa/cashier/cashier-dashboard.html` | UI Dashboard Kasir (Cashier Panel) |
-| `pwa/cashier/cashier.css` | Style Dashboard Kasir bertema biru |
-| `pwa/cashier/cashier.js` | Logika Dashboard Kasir (form input, offline IndexedDB sync, jam realtime) |
-| `pwa/sw.js` | Service Worker — caching aset & strategi Cache First |
-| `pwa/manifest.json` | Web App Manifest — metadata untuk installasi PWA |
-| `pwa/icon-192x192.png` | Ikon PWA 192×192px |
-| `pwa/icon-512x512.png` | Ikon PWA 512×512px |
 
 ### Menjalankan PWA
 
@@ -181,71 +165,6 @@ cd pwa
 python -m http.server 8080
 # Buka http://localhost:8080 di browser
 ```
-
-## Struktur Project
-
-```
-FraudGuard/
-├─ ml_pipeline/
-│  ├─ data/                                    # Data pipeline (auto-generated)
-│  │  ├─ raw/                                  #   Output Tahap 1: data sintetis mentah
-│  │  │  └─ synthetic_transactions.csv
-│  │  ├─ processed/                            #   Output Tahap 2: data bersih
-│  │  │  └─ transactions_cleaned.csv
-│  │  └─ splits/                               #   Output Tahap 3: train/val/test splits
-│  │     ├─ X_train.csv, X_val.csv, X_test.csv
-│  │     └─ y_train.csv, y_val.csv, y_test.csv
-│  │
-│  ├─ notebooks/                               # Semua notebook ML di sini
-│  │  ├─ 01_generate_synthetic_data.ipynb      #   [Tahap 1] Generate data → CSV
-│  │  ├─ 02_eda_and_preprocessing.ipynb        #   [Tahap 2] EDA + Cleaning
-│  │  ├─ 03_feature_engineering.ipynb          #   [Tahap 3] Fitur + Split + Scaling
-│  │  ├─ 04_model_training.ipynb              #   [Tahap 4] Train hybrid model
-│  │  ├─ 05_evaluation.ipynb                  #   [Tahap 5] Evaluasi test set
-│  │  └─ 06_hyperparameter_tuning.ipynb       #   [Tahap 6] Tuning (opsional)
-│  │
-│  ├─ models/                                  # Output model (auto-generated)
-│  │  ├─ isolation_forest.pkl                  #   Lapis 1 — Isolation Forest
-│  │  ├─ best_supervised.pkl                   #   Lapis 2 — 1 model terbaik (RF atau XGB)
-│  │  ├─ scaler.pkl                            #   RobustScaler fitted
-│  │  ├─ feature_columns.json                  #   Daftar fitur & severity mapping
-│  │  └─ model_metadata.json                  #   Info model: nama, params, metrics
-│  │
-│  ├─ database/
-│  │  └─ local_pos.db                          # SQLite database (generated oleh Tahap 1)
-│  │
-│  └─ scoring_engine.py                        # Modul Python — engine scoring untuk API
-│
-├─ api/
-│  └─ app.py                                   # Flask REST API
-│
-├─ pwa/                                        # Progressive Web App (offline-first)
-│  ├─ index.html                               # Landing page (root entrance)
-│  ├─ index.css                                # Style Landing page
-│  ├─ index.js                                 # Logika Landing page & Service Worker registration
-│  ├─ shared/                                  # Modul bersama (common.css, common.js)
-│  ├─ owner/                                   # Dashboard Owner
-│  ├─ cashier/                                 # Dashboard Kasir (offline IndexedDB)
-│  ├─ sw.js                                    # Service Worker (caching PWA)
-│  ├─ manifest.json                            # Web App Manifest
-│  ├─ icon-192x192.png                         # Ikon PWA 192px
-│  └─ icon-512x512.png                         # Ikon PWA 512px
-│
-├─ requirements.txt
-└─ README.md
-```
-
----
-
-## Fitur Keamanan
-
-- **`cashier_id` TIDAK dipakai sebagai fitur** → Cegah hafalan "kasir X = fraud"
-- **Nominal dihitung RELATIF per kasir (z-score)** → Cegah "nominal besar = fraud"
-- **`fraud_severity` HANYA target (y), TIDAK fitur (X)** → Jaminan kunci jawaban terpisah
-- **`stratify=y` saat split** → Proporsi severity terjaga di train, validation & test
-- **Test set terpisah** → Evaluasi final pada data yang belum pernah dilihat model
-
----
 
 ## Tips Penggunaan Notebook
 
@@ -319,5 +238,15 @@ Model terbaik akan tersimpan otomatis ke `models/best_supervised.pkl`.
    - AI beroperasi pada jejak digital (*Digital Footprint*). Jika kasir melakukan pencurian fisik murni tanpa menyentuh layar POS (menerima uang namun tidak mencetak struk), sistem AI buta terhadap kejadian tersebut.
    - **Solusi SOP Saat Ini**: Wajib dipadukan dengan kebijakan operasional "Belanja Gratis Jika Tidak Menerima Struk" untuk memaksa kasir menginput data, serta *Stock Opname* berkala untuk mendeteksi selisih persediaan.
    - **Future Work**: Potensi integrasi dengan IoT (sensor *Cash Drawer*) dan *Computer Vision* (CCTV AI) yang dapat memvalidasi apakah laci uang terbuka secara sinkron dengan log transaksi dari mesin POS.
+
+6. **Manipulasi Jam Perangkat & Jeda Waktu Offline (Offline Time Manipulation)**
+   - Ketika kasir offline, PWA mencatat `timestamp` menggunakan jam sistem lokal perangkat (`new Date()`). Kasir yang berniat curang dapat memanipulasi jam lokal sistem (di Windows/Android) atau sengaja menjeda waktu input agar seolah-olah tidak terjadi transaksi cepat beruntun.
+   - **Mitigasi/Solusi**: Membandingkan `timestamp` (klaim perangkat kasir) dengan `created_at` (waktu server saat sinkronisasi aktual). Adanya tumpukan transaksi dengan `created_at` yang sama persis namun `timestamp` terjeda lama akan terdeteksi sebagai anomali *Time Skew*.
+   - **Solusi SOP**: Penguncian pengaturan waktu perangkat kasir menggunakan MDM (*Mobile Device Management*) agar kasir tidak dapat mengubah jam lokal perangkat secara manual.
+
+7. **Manipulasi Transaksi Fiktif Offline (Offline Transaction Insertion)**
+   - Saat dalam keadaan offline, PWA tidak dapat mencocokkan ketersediaan stok atau status pembayaran secara *real-time* ke server pusat, sehingga kasir secara teoritis dapat menginput penjualan/refund fiktif ke database lokal browser.
+   - **Mitigasi/Solusi**: Deteksi anomali pasca-sinkronisasi (*delayed AI scoring*). Begitu online kembali dan data dikirim ke server, model AI akan menganalisis lonjakan nominal (`amount_zscore_cashier`) dan rasio refund (`refund_ratio_daily`) secara retrospektif.
+   - **Solusi SOP**: Penonaktifan input nominal manual (kasir wajib memindai barcode produk asli yang harganya sudah dikunci di database PWA lokal) dan audit berkala dengan *Stock Opname*.
 
 ---

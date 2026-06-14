@@ -1,6 +1,20 @@
 /* Shared Javascript Utilities for FraudGuard POS */
 
-let API_BASE_URL = localStorage.getItem("fg_api_url") || "http://127.0.0.1:5000/api";
+let API_BASE_URL = `http://${window.location.hostname}:5000/api`;
+if (window.location.hostname === "" || window.location.protocol === "file:") {
+    API_BASE_URL = "http://127.0.0.1:5000/api";
+}
+
+// Auto-detect remote IDE environments (Codespaces / Gitpod / VSCode Tunnels)
+if (window.location.hostname.includes("github.dev") || window.location.hostname.includes("gitpod.io") || window.location.hostname.includes("app.github.dev")) {
+    let portMatch = window.location.hostname.match(/-(\d+)\./);
+    if (portMatch) {
+        let frontendPort = portMatch[1];
+        let backendHost = window.location.hostname.replace(`-${frontendPort}.`, `-5000.`);
+        API_BASE_URL = `https://${backendHost}/api`;
+    }
+}
+
 let activeDB = null;
 
 //  TOAST NOTIFICATIONS HELPER 

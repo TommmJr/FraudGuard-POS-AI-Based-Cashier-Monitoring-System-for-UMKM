@@ -1,91 +1,63 @@
-const NAMA_CACHE = 'fraudguard-v6';
-
-// Daftar file yang wajib di-cache untuk tampilan offline dasar
+const CACHE_NAME = 'fraudguard-v15';
 const ASET_DI_CACHE = [
-    './',
-    './index.html',
-    './index.css',
-    './index.js',
-    './owner/owner-dashboard.html',
-    './owner/owner.css',
-    './owner/owner.js',
-    './cashier/cashier-dashboard.html',
-    './cashier/cashier.css',
-    './cashier/cashier.js',
-    './shared/common.css',
-    './shared/common.js',
-    './manifest.json',
-    './icon-192x192.png',
-    './icon-512x512.png'
+    '/',
+    '/index.html',
+    '/index.css',
+    '/index.js',
+    '/shared/common.js',
+    '/shared/common.css',
+    '/cashier/cashier-dashboard.html',
+    '/cashier/cashier.css',
+    '/cashier/cashier.js',
+    '/owner/owner-dashboard.html',
+    '/owner/owner.css',
+    '/owner/owner.js',
+    '/manifest.json',
+    '/icon-192x192.png',
+    '/icon-512x512.png',
+    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+    'https://cdn.jsdelivr.net/npm/chart.js'
 ];
 
-// 1. Fase Install: Menyimpan aset ke cache
-self.addEventListener('install', function (event) {
-    // Deklarasi variabel terlebih dahulu
-    let janjiCache;
-
-    janjiCache = caches.open(NAMA_CACHE).then(function (cache) {
-        console.log('Service Worker: Menyimpan aset ke cache...');
-        return cache.addAll(ASET_DI_CACHE);
-    });
-
-    event.waitUntil(janjiCache);
+self.addEventListener('install', event => {
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => cache.addAll(ASET_DI_CACHE).catch(err => console.error("Cache addAll failed", err)))
+            .then(() => self.skipWaiting())
+    );
 });
 
-// 2. Fase Activate: Membersihkan cache lama
-self.addEventListener('activate', function (event) {
-    // Deklarasi variabel terlebih dahulu
-    let daftarCacheAktif;
-    let janjiPembersihan;
-
-    daftarCacheAktif = [NAMA_CACHE];
-
-    janjiPembersihan = caches.keys().then(function (namaNamaCache) {
-        let janjiHapusCache;
-
-        janjiHapusCache = namaNamaCache.map(function (namaCache) {
-            let apakahCacheLama;
-
-            apakahCacheLama = daftarCacheAktif.indexOf(namaCache) === -1;
-
-            if (apakahCacheLama) {
-                console.log('Service Worker: Menghapus cache lama', namaCache);
-                return caches.delete(namaCache);
-            }
-        });
-
-        return Promise.all(janjiHapusCache);
-    });
-
-    event.waitUntil(janjiPembersihan);
+self.addEventListener('activate', event => {
+    event.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames.map(cacheName => {
+                    if (cacheName !== CACHE_NAME) {
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        }).then(() => self.clients.claim())
+    );
 });
 
-// 3. Fase Fetch: Melayani permintaan dari cache jika offline
-self.addEventListener('fetch', function (event) {
-    // Deklarasi variabel terlebih dahulu
-    let apakahPermintaanAPI;
-    let janjiAmbilData;
+// Implementasi Stale-While-Revalidate untuk request GET
+self.addEventListener('fetch', event => {
+    if (event.request.method !== 'GET' || event.request.url.includes('/api/')) return;
 
-    apakahPermintaanAPI = event.request.url.includes('/api/');
-
-    // Jika request mengarah ke API Flask backend, kita biarkan saja 
-    if (apakahPermintaanAPI) {
-        return;
-    }
-
-    // Strategi "Cache First" untuk aset statis (HTML, CSS, JS)
-    janjiAmbilData = caches.match(event.request, { ignoreSearch: true }).then(function (response) {
-        let salinanPermintaan;
-
-        // Jika file ditemukan di cache, langsung kembalikan file tersebut
-        if (response) {
-            return response;
-        }
-
-        // Jika tidak ada di cache, coba ambil dari internet
-        salinanPermintaan = event.request.clone();
-        return fetch(salinanPermintaan);
-    });
-
-    event.respondWith(janjiAmbilData);
+    event.respondWith(
+        caches.open(CACHE_NAME).then(cache => {
+            return cache.match(event.request).then(response => {
+                const fetchPromise = fetch(event.request).then(networkResponse => {
+                    // Update cache di background
+                    cache.put(event.request, networkResponse.clone());
+                    return networkResponse;
+                }).catch(() => {
+                    // Ignore background fetch error
+                });
+                // Return cache langsung kalau ada, sambil network fetch jalan di background
+                return response || fetchPromise;
+            });
+        })
+    );
 });

@@ -32,12 +32,18 @@
     --text-muted: var(--text-light-muted);
     --bg-glass: var(--glass-light);
 
-    /* Risk Status Colors */
+    /* Risk Status Colors (badge & box) */
     --risk-pending: #94A3B8;
     --risk-low: #10B981;
     --risk-medium: #F59E0B;
     --risk-high: #EF4444;
     --risk-critical: #7F1D1D;
+
+    /* Color aliases used by risk-status-box */
+    --color-low:      #10B981;
+    --color-medium:   #F59E0B;
+    --color-high:     #EF4444;
+    --color-critical: #991B1B;
     
     /* Layout & Shadows */
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -162,8 +168,9 @@ body {
     background-color: var(--bg-card);
     border-radius: var(--radius-lg);
     border: 1px solid var(--border-color);
-    width: 650px;
-    max-width: 90%;
+    width: 700px;
+    max-width: 92%;
+    max-height: 90vh;
     box-shadow: var(--shadow-lg);
     display: flex;
     flex-direction: column;
@@ -184,6 +191,17 @@ body {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    overflow-y: auto;
+    max-height: calc(90vh - 80px); /* 80px = approx modal header height */
+    overscroll-behavior: contain;
+}
+
+.modal-body::-webkit-scrollbar {
+    width: 5px;
+}
+.modal-body::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 4px;
 }
 
 .modal-close {

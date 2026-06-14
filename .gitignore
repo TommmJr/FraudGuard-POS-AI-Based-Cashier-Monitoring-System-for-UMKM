@@ -5,3 +5,4 @@ __pycache__/
 *.csv
 ml_pipeline/data/
 ml_pipeline/models/
+doc_assets/
