@@ -29,7 +29,7 @@ beri **severity level** (LOW/MEDIUM/HIGH/CRITICAL) → **tandai untuk ditinjau m
 | **LOW** | Transaksi normal | — |
 | **MEDIUM** | Refund nominal wajar, frekuensi abnormal | Profil C (Halus) |
 | **HIGH** | Refund nominal menengah, berulang | Profil B (Sedang) |
-| **CRITICAL** | Refund besar beruntun (A) atau SALE anomali larut malam (D) | Profil A & Profil D |
+| **CRITICAL** | Refund besar beruntun (A) atau kombinasi anomali SALE (D) | Profil A & Profil D |
 
 ### Pipeline
 ```
@@ -44,7 +44,7 @@ Tahap 2: notebooks/02_eda_and_preprocessing.ipynb
          └─ Output: data/processed/transactions_cleaned.csv
                     ↓
 Tahap 3: notebooks/03_feature_engineering.ipynb
-         ├─ Hitung 11 fitur perilaku kasir (termasuk is_late_night & freq z-score)
+         ├─ Hitung 11 fitur perilaku kasir (seperti time_gap_seconds, is_refund, & amount_zscore_cashier)
          ├─ Encode target (severity → ordinal 0-3)
          ├─ Stratified split: train 70% / val 15% / test 15%
          ├─ Scaling dengan RobustScaler
@@ -118,7 +118,7 @@ Buka browser dan jalankan file notebook berikut secara berurutan:
 2. **`02_eda_and_preprocessing.ipynb`**  
    *Melakukan pembersihan data, membuang duplikat, menangani missing values, dan visualisasi sebaran kelas target.*
 3. **`03_feature_engineering.ipynb`**  
-   *Menghitung 11 fitur perilaku (seperti nominal z-score, jeda waktu transaksi, is_late_night). Menghasilkan data split (train/val/test), standardisasi `scaler.pkl`, dan `feature_columns.json`.*
+   *Menghitung 11 fitur perilaku (seperti nominal z-score, jeda waktu transaksi, is_refund). Menghasilkan data split (train/val/test), standardisasi `scaler.pkl`, dan `feature_columns.json`.*
 4. **`04_model_training.ipynb`**  
    *Melatih model hybrid dua lapis: Lapis 1 (unsupervised Isolation Forest) dan Lapis 2 (supervised multi-class terbaik dari Random Forest vs XGBoost). Menyimpan berkas model `isolation_forest.pkl`, `best_supervised.pkl`, dan metadata model.*
 5. **`05_evaluation.ipynb`**  

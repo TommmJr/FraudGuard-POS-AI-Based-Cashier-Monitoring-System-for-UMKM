@@ -329,7 +329,7 @@ function renderAIInsights() {
     }
 
     if (apiDashboard.summary.total_fraud_labeled > 10) {
-        insights.push(`Risiko fraud terdeteksi mengalami kenaikan dalam 7 hari terakhir. Perketat otorisasi pada transaksi berisiko tinggi (termasuk SALE larut malam).`);
+        insights.push(`Risiko fraud terdeteksi mengalami kenaikan dalam 7 hari terakhir. Perketat otorisasi pada transaksi berisiko tinggi.`);
     } else {
         insights.push(`Grafik risiko fraud harian terpantau stabil. Pastikan SOP kasir tetap dijalankan secara disiplin.`);
     }
